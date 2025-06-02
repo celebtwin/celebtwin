@@ -8,8 +8,9 @@ from typing import Tuple
 print(Fore.BLUE + "\nLoading TensorFlow..." + Style.RESET_ALL)
 start = time.perf_counter()
 
+from tensorflow import Tensor
 from tensorflow import keras
-from keras import Model, Sequential, layers, regularizers, optimizers
+from keras import Model, Sequential, layers, regularizers, optimizers, Input
 from keras.callbacks import EarlyStopping
 
 end = time.perf_counter()
@@ -17,23 +18,35 @@ print(f"\n✅ TensorFlow loaded ({round(end - start, 2)}s)")
 
 
 
-def initialize_model(input_shape: tuple) -> Model:
+def initialize_model(input_shape: tuple, class_nb: int, colors: bool = True) -> Model:
     """
     Initialize the Neural Network with random weights
     """
-    # $CODE_BEGIN
-    reg = regularizers.l1_l2(l2=0.005)
+    # 3 or 1 depending on 'colors' value (True or False)
+    nb_channels = 3 if colors else 1
 
+    ####### Very very baseline model (similar to MNIST architecture)
     model = Sequential()
-    model.add(layers.Input(shape=input_shape))
-    #model.add(layers.Dense(100, activation="relu", kernel_regularizer=reg))
-    #model.add(layers.BatchNormalization(momentum=0.9))
-    #model.add(layers.Dropout(rate=0.1))
-    #model.add(layers.Dense(50, activation="relu"))
-    #model.add(layers.BatchNormalization(momentum=0.9))  # use momentum=0 to only use statistic of the last seen minibatch in inference mode ("short memory"). Use 1 to average statistics of all seen batch during training histories.
-    #model.add(layers.Dropout(rate=0.1))
-    model.add(layers.Dense(1, activation="linear"))
-    # $CODE_END
+
+    model.add(Input(shape=(*input_shape, nb_channels)))
+
+    ### First Convolution & MaxPooling
+    model.add(layers.Conv2D(8, (4, 4), padding='same', activation="relu"))
+    model.add(layers.MaxPool2D(pool_size=(2,2)))
+
+    ### Second Convolution & MaxPooling
+    model.add(layers.Conv2D(16, (3, 3), activation="relu"))
+    model.add(layers.MaxPool2D(pool_size=(2,2)))
+
+    ### Flattening
+    model.add(layers.Flatten())
+
+    ### One Fully Connected layer - "Fully Connected" is equivalent to saying "Dense"
+    model.add(layers.Dense(10, activation='relu'))
+
+    ### Last layer - Classification Layer with n outputs corresponding to n celebrities
+    model.add(layers.Dense(class_nb, activation='softmax'))
+
 
     print("✅ Model initialized")
 
@@ -44,10 +57,12 @@ def compile_model(model: Model, learning_rate=0.0005) -> Model:
     """
     Compile the Neural Network
     """
-    # $CODE_BEGIN
+
     optimizer = optimizers.Adam(learning_rate=learning_rate)
-    model.compile(loss="mean_squared_error", optimizer=optimizer, metrics=["mae"])
-    # $CODE_END
+    ### Model compilation
+    model.compile(loss='categorical_crossentropy',
+                  optimizer=optimizer,
+                  metrics = ['accuracy'])
 
     print("✅ Model compiled")
 
@@ -55,17 +70,17 @@ def compile_model(model: Model, learning_rate=0.0005) -> Model:
 
 def train_model(
         model: Model,
-        X: np.ndarray,
+        X: Tensor,
         y: np.ndarray,
-        batch_size=256,
-        patience=2,
+        batch_size=32,
+        patience=5,
         validation_data=None, # overrides validation_split
-        validation_split=0.3
+        validation_split=0.2
     ) -> Tuple[Model, dict]:
     """
     Fit the model and return a tuple (fitted_model, history)
     """
-    # $CODE_BEGIN
+
     print(Fore.BLUE + "\nTraining model..." + Style.RESET_ALL)
 
     es = EarlyStopping(
@@ -83,10 +98,9 @@ def train_model(
         epochs=100,
         batch_size=batch_size,
         callbacks=[es],
-        verbose=0
+        verbose=1
     )
-    # $CODE_END
 
-    print(f"✅ Model trained on {len(X)} rows with min val MAE: {round(np.min(history.history['val_mae']), 2)}")
+    print(f"✅ Model trained on {len(X)} rows with min val MAE: {round(np.min(history.history['val_accuracy']), 2)}")
 
     return model, history
