@@ -12,3 +12,4 @@ scikit-learn
 tensorflow
 tensorflow-metal; sys_platform == 'darwin' and 'ARM' in platform_version # GPU acceleration for Mac M-chips
 ipykernel
+colorama
