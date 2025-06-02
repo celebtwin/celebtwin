@@ -1,4 +1,3 @@
-
 .PHONY: help
 help:
 	echo "make setup   - creates the virtual env and install packages"
@@ -20,3 +19,20 @@ dataset:
 	--output "raw_data/${dataset_zip}" \
 	https://www.kaggle.com/api/v1/datasets/download/hereisburak/pins-face-recognition
 	cd raw_data && unzip "${dataset_zip}"
+
+
+ML_DIR=./raw_data/preprocessed
+HTTPS_DIR=https://storage.googleapis.com/datascience-mlops/taxi-fare-ny/
+GS_DIR=gs://datascience-mlops/taxi-fare-ny
+
+show_sources_all:
+	-ls -l ${ML_DIR} | wc -l
+#	-bq ls ${BQ_DATASET}
+#	-gsutil ls gs://${BUCKET_NAME}
+
+reset_local_files:
+	rm -rf ${ML_DIR}
+	mkdir -p ${ML_DIR}
+
+clean:
+	@rm -fr **/__pycache__ **/*.pyc
