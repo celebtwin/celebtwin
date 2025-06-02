@@ -9,6 +9,7 @@ setup:
 	pyenv install --skip-existing 3.12.9
 	pyenv virtualenvs --bare | grep -e '^celebtwin$$' \
 	|| pyenv virtualenv celebtwin
+	pyenv local celebtwin
 	pip install -r requirements.txt
 
 dataset_zip = pins-face-recognition.zip
