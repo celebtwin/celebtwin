@@ -1,0 +1,11 @@
+# Common
+pip-tools
+
+# Development
+ruff
+ipdb
+numpy
+pandas
+matplotlib
+seaborn
+scikit-learn
