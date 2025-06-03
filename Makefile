@@ -47,4 +47,4 @@ run_api:
 
 .PHONY: train
 train:
-	python -c 'from celebtwin.interface.main_local import train; train()'
+	python -m celebtwin train
