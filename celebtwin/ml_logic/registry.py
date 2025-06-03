@@ -11,10 +11,10 @@ from google.cloud import storage
 
 
 def save_results(params: dict, metrics: dict):
-    """
-    Persist params & metrics locally on the hard drive at
-    "{LOCAL_REGISTRY_PATH}/params/{current_timestamp}.pickle"
-    "{LOCAL_REGISTRY_PATH}/metrics/{current_timestamp}.pickle"
+    """Persist params & metrics locally.
+
+    - {LOCAL_REGISTRY_PATH}/params/{current_timestamp}.pickle
+    - {LOCAL_REGISTRY_PATH}/metrics/{current_timestamp}.pickle
     """
     timestamp = time.strftime("%Y%m%d-%H%M%S")
     registry = Path(LOCAL_REGISTRY_PATH)
@@ -63,8 +63,7 @@ def save_model(model: keras.Model):
 
 
 def load_model() -> keras.Model:
-    """
-    Return a saved model:
+    """Return a saved model.
 
     - locally (latest one in alphabetical order)
     - or from GCS (most recent one) if MODEL_TARGET=='gcs'

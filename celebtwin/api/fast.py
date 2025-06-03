@@ -22,9 +22,7 @@ app.add_middleware(
 def predict(
         param: str,  # 2014-07-06 19:18:00
     ):
-    """
-    Make a single course prediction.
-    """
+    """Make a single course prediction."""
     X_processed = None
     #y_pred = app.state.model.predict(X_processed)
     y_pred = 'pong'

@@ -15,8 +15,7 @@ def cli():
 
 @cli.command()
 def train():
-    """
-    Train on a local dataset.
+    """Train on a local dataset.
 
     Save validation metrics and the trained model.
     """
