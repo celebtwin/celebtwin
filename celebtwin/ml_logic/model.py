@@ -8,14 +8,12 @@ from typing import Tuple
 print(Fore.BLUE + "\nLoading TensorFlow..." + Style.RESET_ALL)
 start = time.perf_counter()
 
-from tensorflow import Tensor
-from tensorflow import keras
+from tensorflow.data import Dataset
 from keras import Model, Sequential, layers, regularizers, optimizers, Input
 from keras.callbacks import EarlyStopping
 
 end = time.perf_counter()
 print(f"\n✅ TensorFlow loaded ({round(end - start, 2)}s)")
-
 
 
 def initialize_model(input_shape: tuple, class_nb: int, colors: bool = True) -> Model:
@@ -47,13 +45,12 @@ def initialize_model(input_shape: tuple, class_nb: int, colors: bool = True) -> 
     ### Last layer - Classification Layer with n outputs corresponding to n celebrities
     model.add(layers.Dense(class_nb, activation='softmax'))
 
-
     print("✅ Model initialized")
 
     return model
 
 
-def compile_model(model: Model, learning_rate=0.0005) -> Model:
+def compile_model(model: Model, learning_rate=0.001) -> Model:
     """
     Compile the Neural Network
     """
@@ -61,21 +58,19 @@ def compile_model(model: Model, learning_rate=0.0005) -> Model:
     optimizer = optimizers.Adam(learning_rate=learning_rate)
     ### Model compilation
     model.compile(loss='categorical_crossentropy',
-                  optimizer=optimizer,
+                  optimizer=optimizer,  # type: ignore
                   metrics = ['accuracy'])
 
     print("✅ Model compiled")
 
     return model
 
+
 def train_model(
         model: Model,
-        X: Tensor,
-        y: np.ndarray,
-        batch_size=32,
-        patience=5,
-        validation_data=None, # overrides validation_split
-        validation_split=0.2
+        train_dataset: Dataset,
+        validation_dataset: Dataset,
+        patience: int,
     ) -> Tuple[Model, dict]:
     """
     Fit the model and return a tuple (fitted_model, history)
@@ -91,16 +86,18 @@ def train_model(
     )
 
     history = model.fit(
-        X,
-        y,
-        validation_data=validation_data,
-        validation_split=validation_split,
+        train_dataset,
+        validation_data=validation_dataset,
         epochs=100,
-        batch_size=batch_size,
         callbacks=[es],
-        verbose=1
+        verbose=1  # type: ignore
     )
 
-    print(f"✅ Model trained on {len(X)} rows with min val MAE: {round(np.min(history.history['val_accuracy']), 2)}")
+    # I guess cardinality should give the number of images, but it does not.
+    # train_len = train_dataset.cardinality().numpy().item()
+    train_len = len(train_dataset.file_paths)
+    min_val_accuracy = round(np.min(history.history['val_accuracy']), 2)
+    print(f"✅ Model trained on {train_len} images with min validation"
+          f" accuracy: {min_val_accuracy}")
 
-    return model, history
+    return model, history.history

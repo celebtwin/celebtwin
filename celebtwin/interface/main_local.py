@@ -1,13 +1,12 @@
 import numpy as np
 import pandas as pd
 
-from google.cloud import bigquery
 from pathlib import Path
 from colorama import Fore, Style
 from dateutil.parser import parse
 
 from celebtwin.params import *
-from celebtwin.ml_logic.data import make_dataset_loader
+from celebtwin.ml_logic.data import load_dataset
 from celebtwin.ml_logic.preprocessor import preprocess_features
 from celebtwin.ml_logic.registry import save_model, save_results, load_model
 from celebtwin.ml_logic.model import compile_model, initialize_model, train_model
@@ -216,90 +215,53 @@ def preprocess(min_date: str = '2009-01-01', max_date: str = '2015-01-01') -> No
     print("✅ preprocess() done")
 
 
-def train(min_date:str = '2009-01-01', max_date:str = '2015-01-01') -> None:
+def train():
     """
-    Incremental training on the (already preprocessed) dataset, stored locally
+    Train on a local dataset.
 
-    - Loading data in chunks
-    - Updating the weight of the model for each chunk
-    - Saving validation metrics at each chunk, and final model weights on the local disk
+    Save validation metrics and the trained model.
     """
+    print(Fore.MAGENTA + " ⭐️ Training" + Style.RESET_ALL)
 
-    print(Fore.MAGENTA + "\n ⭐️ Use case: train in batches" + Style.RESET_ALL)
+    image_size = 64
+    num_classes = 2
+    color_mode = 'grayscale'
+    batch_size = 256
+    validation_split = 0.2
+    learning_rate = 0.001
+    patience = 5
 
-    data_processed_path = Path(LOCAL_DATA_PATH).joinpath("processed", f"processed_{min_date}_{max_date}_{DATA_SIZE}.csv")
-    model = None
-    metrics_val_list = []  # store the val_mae of each chunk
-
-    # Iterate in chunks and partially fit on each chunk
-    chunks = pd.read_csv(
-        data_processed_path,
-        chunksize=CHUNK_SIZE,
-        header=None,
-        dtype=DTYPES_PROCESSED
+    train_dataset, val_dataset = load_dataset(
+        image_size,
+        num_classes,
+        undersample=False,
+        color_mode=color_mode,
+        resize='pad',
+        batch_size=batch_size,
+        validation_split=validation_split
     )
+    assert len(train_dataset.class_names) == num_classes
 
-    for chunk_id, chunk in enumerate(chunks):
-        print(f"Training on preprocessed chunk n°{chunk_id}")
+    n_channels = {'grayscale': 1, 'color': 3}[color_mode]
+    model = initialize_model(
+        input_shape=(image_size, image_size),
+        class_nb=len(train_dataset.class_names),
+        colors=(color_mode == 'color'))
+    model = compile_model(model, learning_rate)
+    model, history = train_model(
+        model, train_dataset, val_dataset, patience)
 
-        # You can adjust training params for each chunk if you want!
-        learning_rate = 0.0005
-        batch_size = 256
-        patience=2
-        split_ratio = 0.1 # Higher train/val split ratio when chunks are small! Feel free to adjust.
+    val_accuracy = np.max(history['val_accuracy'])
+    save_model(model=model)
 
-        # Create (X_train_chunk, y_train_chunk, X_val_chunk, y_val_chunk)
-        train_length = int(len(chunk)*(1-split_ratio))
-        chunk_train = chunk.iloc[:train_length, :].sample(frac=1).to_numpy()
-        chunk_val = chunk.iloc[train_length:, :].sample(frac=1).to_numpy()
-
-        X_train_chunk = chunk_train[:, :-1]
-        y_train_chunk = chunk_train[:, -1]
-        X_val_chunk = chunk_val[:, :-1]
-        y_val_chunk = chunk_val[:, -1]
-
-        # Train a model *incrementally*, and store the val_mae of each chunk in `metrics_val_list`
-        # $CODE_BEGIN
-        if model is None:
-            model = initialize_model(input_shape=X_train_chunk.shape[1:])
-
-        model = compile_model(model, learning_rate)
-
-        model, history = train_model(
-            model,
-            X_train_chunk,
-            y_train_chunk,
-            batch_size=batch_size,
-            patience=patience,
-            validation_data=(X_val_chunk, y_val_chunk)
-        )
-
-        metrics_val_chunk = np.min(history.history['val_mae'])
-        metrics_val_list.append(metrics_val_chunk)
-
-        print(metrics_val_chunk)
-        # $CODE_END
-
-    # Return the last value of the validation MAE
-    val_mae = metrics_val_list[-1]
-
-    # Save model and training params
     params = dict(
         learning_rate=learning_rate,
         batch_size=batch_size,
-        patience=patience,
-        incremental=True,
-        chunk_size=CHUNK_SIZE
-    )
-
-    print(f"✅ Trained with MAE: {round(val_mae, 2)}")
-
-    # Save results & model
-    save_results(params=params, metrics=dict(mae=val_mae))
-    save_model(model=model)
+        patience=patience)
+    save_results(params=params, metrics=dict(accuracy=val_accuracy))
 
     print("✅ train() done")
-# $ERASE_END
+
 
 def pred(X_pred: pd.DataFrame = None) -> np.ndarray:
     print(Fore.MAGENTA + "\n ⭐️ Use case: pred" + Style.RESET_ALL)

@@ -1,5 +1,6 @@
 .*
 *.ipynb
-/raw_data/
-/docs/
+/raw_data
+/training_outputs
+/docs
 __pycache__
