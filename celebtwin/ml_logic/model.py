@@ -2,14 +2,6 @@ import time
 
 import numpy as np
 from colorama import Fore, Style
-
-print(Fore.BLUE + "Loading TensorFlow..." + Style.RESET_ALL)
-start = time.perf_counter()
-import tensorflow
-
-end = time.perf_counter()
-print(f"✅ TensorFlow loaded ({round(end - start, 2)}s)")
-
 from keras import Input, Model, Sequential, layers, optimizers
 from keras.callbacks import EarlyStopping
 from tensorflow.data import Dataset
