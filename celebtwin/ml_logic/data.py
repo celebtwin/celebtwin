@@ -2,11 +2,11 @@ import shutil
 from pathlib import Path
 from zipfile import ZIP_STORED, ZipFile
 
+import keras.src.utils.image_dataset_utils
 import numpy as np
 import tensorflow as tf
 from keras.config import image_data_format
 from keras.preprocessing import image_dataset_from_directory
-from keras.src.utils.image_dataset_utils import load_image
 
 RAW_DATA = Path('raw_data')
 FULL_DATASET = RAW_DATA / '105_classes_pins_dataset'
@@ -109,13 +109,11 @@ class _DatasetBuilder:
         """
         dsname = self.dataset_name
         tmp_dir = RAW_DATA / (dsname + '.tmp')
-
         num_channels = {'grayscale': 1, 'rgb': 3}[self._color_mode]
-        crop, pad = _get_crop_pad(self._resize)
 
         def inner_load_image(path):
             return load_image(
-                str(path), (self._image_size,) * 2, num_channels, 'bilinear', image_data_format(), crop, pad)
+                path, self._image_size, num_channels, self._resize)
 
         with _ImageWriter(RAW_DATA, dsname) as image_writer:
             for input_image_path, image_tensor in _iter_read_images(
@@ -128,7 +126,16 @@ class _DatasetBuilder:
                 image_writer.write_image(class_name, image_name, image_tensor)
 
 
-def _image_number(path):
+def load_image(path: Path | str, image_size: int, num_channels: int,
+               resize: str = 'pad') -> np.ndarray:
+    """Load one image as a numpy array using keras."""
+    crop, pad = _get_crop_pad(resize)
+    return keras.src.utils.image_dataset_utils.load_image(
+        str(path), (image_size,) * 2, num_channels, 'bilinear',
+        image_data_format(), crop, pad)
+
+
+def _image_number(path: Path) -> int:
     # Images in the input data are named like 'Adriana Lima101_3.jpg', where
     # the image number is the part after the underscore.
     return int(path.stem.split('_')[1])
