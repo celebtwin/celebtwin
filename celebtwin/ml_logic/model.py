@@ -1,5 +1,4 @@
 import time
-from typing import Tuple
 
 import numpy as np
 from colorama import Fore, Style
@@ -67,7 +66,7 @@ def train_model(
         train_dataset: Dataset,
         validation_dataset: Dataset,
         patience: int,
-    ) -> Tuple[Model, dict]:
+    ) -> tuple[Model, dict]:
     """Fit the model and return a tuple (fitted_model, history)."""
 
     print(Fore.BLUE + "👟 Training model..." + Style.RESET_ALL)
