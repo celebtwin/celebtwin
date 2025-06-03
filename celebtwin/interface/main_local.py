@@ -1,16 +1,13 @@
 import click
 import numpy as np
 import pandas as pd
-
-from pathlib import Path
-from colorama import Fore, Style
-from dateutil.parser import parse
-
-from celebtwin.params import *
 from celebtwin.ml_logic.data import load_dataset
-from celebtwin.ml_logic.preprocessor import preprocess_features
-from celebtwin.ml_logic.registry import save_model, save_results, load_model
 from celebtwin.ml_logic.model import compile_model, initialize_model, train_model
+from celebtwin.ml_logic.preprocessor import preprocess_features
+from celebtwin.ml_logic.registry import load_model, save_model, save_results
+
+from colorama import Fore, Style
+
 
 @click.group()
 def cli():

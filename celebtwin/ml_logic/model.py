@@ -1,19 +1,19 @@
-import numpy as np
 import time
-
-from colorama import Fore, Style
 from typing import Tuple
 
-# Timing the TF import
-print(Fore.BLUE + "\nLoading TensorFlow..." + Style.RESET_ALL)
-start = time.perf_counter()
+import numpy as np
+from colorama import Fore, Style
 
-from tensorflow.data import Dataset
-from keras import Model, Sequential, layers, regularizers, optimizers, Input
-from keras.callbacks import EarlyStopping
+print(Fore.BLUE + "Loading TensorFlow..." + Style.RESET_ALL)
+start = time.perf_counter()
+import tensorflow
 
 end = time.perf_counter()
-print(f"\n✅ TensorFlow loaded ({round(end - start, 2)}s)")
+print(f"✅ TensorFlow loaded ({round(end - start, 2)}s)")
+
+from keras import Input, Model, Sequential, layers, optimizers
+from keras.callbacks import EarlyStopping
+from tensorflow.data import Dataset
 
 
 def initialize_model(input_shape: tuple, class_nb: int, colors: bool = True) -> Model:
@@ -76,7 +76,7 @@ def train_model(
     Fit the model and return a tuple (fitted_model, history)
     """
 
-    print(Fore.BLUE + "\nTraining model..." + Style.RESET_ALL)
+    print(Fore.BLUE + "👟 Training model..." + Style.RESET_ALL)
 
     es = EarlyStopping(
         monitor="val_loss",
