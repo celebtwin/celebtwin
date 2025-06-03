@@ -7,7 +7,7 @@ from colorama import Fore, Style
 from dateutil.parser import parse
 
 from celebtwin.params import *
-from celebtwin.ml_logic.data import clean_data
+from celebtwin.ml_logic.data import make_dataset_loader
 from celebtwin.ml_logic.preprocessor import preprocess_features
 from celebtwin.ml_logic.registry import save_model, save_results, load_model
 from celebtwin.ml_logic.model import compile_model, initialize_model, train_model
@@ -55,16 +55,21 @@ def preprocess_and_train() -> None:
         # Save it locally to accelerate the next queries!
         data.to_csv(data_query_cache_path, header=True, index=False)
 
-    # Clean data using data.py
-    # $CODE_BEGIN
-    data = clean_data(data)
-    # $CODE_END
+    dataset_loader = make_dataset_loader(
+        image_size=64, num_classes=2, undersample=True, color_mode='grayscale',
+        resize='pad')
 
-    # Create (X_train, y_train, X_val, y_val) without data leaks
-    # No need for test sets, we'll report val metrics only
+    # We do not need to clean data. But we may want to apply further image
+    # preprocessing. That should be done either in the model pipeline or, if we
+    # want to save on duplicate processing, in the dataset generation.
+
+    #data = clean_data(data)
+
     split_ratio = 0.02 # About one month of validation data
 
-    # $CODE_BEGIN
+    # TODO: Remove this code. The train-test split is handled by
+    # keras.preprocessing.image_dataset_from_directory.
+
     train_length = int(len(data) * (1 - split_ratio))
 
     data_train = data.iloc[:train_length, :].sample(frac=1)
@@ -75,14 +80,11 @@ def preprocess_and_train() -> None:
 
     X_val = data_val.drop("fare_amount", axis=1)
     y_val = data_val[["fare_amount"]]
-    # $CODE_END
 
-    # Create (X_train_processed, X_val_processed) using `preprocessor.py`
-    # Luckily, our preprocessor is stateless: we can `fit_transform` both X_train and X_val without data leakage!
-    # $CODE_BEGIN
+    # TODO: Remove preprocess_features. Preprocessing should by done either in
+    # the model or during dataset generation.
     X_train_processed = preprocess_features(X_train)
     X_val_processed = preprocess_features(X_val)
-    # $CODE_END
 
     # Train a model on the training set, using `model.py`
     model = None
