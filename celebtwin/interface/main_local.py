@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 from celebtwin.ml_logic.data import load_dataset
 from celebtwin.ml_logic.model import compile_model, initialize_model, train_model
-from celebtwin.ml_logic.preprocessor import preprocess_features
 from celebtwin.ml_logic.registry import load_model, save_model, save_results
 
 from colorama import Fore, Style

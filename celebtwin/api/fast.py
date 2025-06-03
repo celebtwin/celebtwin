@@ -3,7 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from celebtwin.params import *
 from celebtwin.ml_logic.registry import load_model
-from celebtwin.ml_logic.preprocessor import preprocess_features
 
 app = FastAPI()
 #app.state.model = load_model()
