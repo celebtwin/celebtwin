@@ -2,6 +2,7 @@
 help:
 	echo "make setup   - creates the virtual env and install packages"
 	echo "make dataset - download the raw dataset"
+	echo "make run_api - start web services"
 
 .PHONY: setup
 setup:
@@ -23,16 +24,22 @@ dataset:
 
 ML_DIR=./raw_data/preprocessed
 HTTPS_DIR=https://storage.googleapis.com/datascience-mlops/taxi-fare-ny/
-GS_DIR=gs://datascience-mlops/taxi-fare-ny
 
+.PHONY: show_sources_all
 show_sources_all:
 	-ls -l ${ML_DIR} | wc -l
 #	-bq ls ${BQ_DATASET}
 #	-gsutil ls gs://${BUCKET_NAME}
 
+.PHONY: reset_local_files
 reset_local_files:
 	rm -rf ${ML_DIR}
 	mkdir -p ${ML_DIR}
 
+.PHONY: clean
 clean:
 	@rm -fr **/__pycache__ **/*.pyc
+
+.PHONY: run_api
+run_api:
+	uvicorn celebtwin.api.fast:app --reload
