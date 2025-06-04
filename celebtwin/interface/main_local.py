@@ -65,7 +65,7 @@ def pred(X_pred: pd.DataFrame = None) -> np.ndarray:
 if __name__ == '__main__':
     try:
         cli()
-    except:
+    except Exception:
         import sys
         import traceback
 

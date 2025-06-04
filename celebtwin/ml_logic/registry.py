@@ -99,7 +99,7 @@ def load_model() -> keras.Model:
             print("✅ Latest model downloaded from cloud storage")
 
             return latest_model
-        except:
+        except Exception:
             print(f"❌ No model found in GCS bucket {BUCKET_NAME}")
 
             return None
