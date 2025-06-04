@@ -1,16 +1,17 @@
 import click
 import numpy as np
 import pandas as pd
-from celebtwin.ml_logic.data import load_dataset
-from celebtwin.ml_logic.model import compile_model, initialize_model, train_model
-from celebtwin.ml_logic.registry import load_model, save_model, save_results
-
+from celebtwin.ml_logic.data import ColorMode, ResizeMode, SimpleDataset
+from celebtwin.ml_logic.experiment import Experiment
+from celebtwin.ml_logic.model import SimpleLeNetModel
+from celebtwin.ml_logic.registry import load_model
 from colorama import Fore, Style
 
 
 @click.group()
 def cli():
     pass
+
 
 @cli.command()
 def train():
@@ -22,41 +23,30 @@ def train():
 
     image_size = 64
     num_classes = 2
-    color_mode = 'grayscale'
+    color_mode = ColorMode.GRAYSCALE
     batch_size = 256
     validation_split = 0.2
     learning_rate = 0.001
     patience = 5
 
-    train_dataset, val_dataset = load_dataset(
-        image_size,
-        num_classes,
+    dataset = SimpleDataset(
+        image_size=image_size,
+        num_classes=num_classes,
         undersample=False,
         color_mode=color_mode,
-        resize='pad',
+        resize=ResizeMode.PAD,
         batch_size=batch_size,
-        validation_split=validation_split
-    )
-    assert len(train_dataset.class_names) == num_classes
-
-    n_channels = {'grayscale': 1, 'color': 3}[color_mode]
-    model = initialize_model(
-        input_shape=(image_size, image_size),
-        class_nb=len(train_dataset.class_names),
-        colors=(color_mode == 'color'))
-    model = compile_model(model, learning_rate)
-    model, history = train_model(
-        model, train_dataset, val_dataset, patience)
-
-    val_accuracy = np.max(history['val_accuracy'])
-    save_model(model=model)
-
-    params = dict(
+        validation_split=validation_split)
+    model = SimpleLeNetModel(
+        input_shape=(image_size, image_size, color_mode.num_channels()),
+        class_nb=num_classes)
+    experiment = Experiment(
+        dataset=dataset,
+        model=model,
         learning_rate=learning_rate,
-        batch_size=batch_size,
         patience=patience)
-    save_results(params=params, metrics=dict(accuracy=val_accuracy))
-
+    experiment.run()
+    experiment.save_results()
     print("✅ train() done")
 
 

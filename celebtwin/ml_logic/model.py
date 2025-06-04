@@ -1,88 +1,115 @@
-import time
-
+import keras
 import numpy as np
+import tensorflow as tf
 from colorama import Fore, Style
-from keras import Input, Model, Sequential, layers, optimizers
+from keras import Input, Sequential, layers, optimizers
 from keras.callbacks import EarlyStopping
-from tensorflow.data import Dataset
+from celebtwin.ml_logic.registry import save_model
 
 
-def initialize_model(input_shape: tuple, class_nb: int, colors: bool = True) -> Model:
-    """Initialize the Neural Network with random weights."""
-    # 3 or 1 depending on 'colors' value (True or False)
-    nb_channels = 3 if colors else 1
+class Model:
+    """Machine learning model used for training and evaluation."""
 
-    ####### Very very baseline model (similar to MNIST architecture)
-    model = Sequential()
+    _model: keras.Model
+    """The underlying Keras model."""
 
-    model.add(Input(shape=(*input_shape, nb_channels)))
+    _patience: int
 
-    ### First Convolution & MaxPooling
-    model.add(layers.Conv2D(8, (4, 4), padding='same', activation="relu"))
-    model.add(layers.MaxPool2D(pool_size=(2,2)))
+    @property
+    def identifier(self) -> str:
+        """Unique identifier for the model."""
+        raise NotImplementedError("Implement identifier in a subclass.")
 
-    ### Second Convolution & MaxPooling
-    model.add(layers.Conv2D(16, (3, 3), activation="relu"))
-    model.add(layers.MaxPool2D(pool_size=(2,2)))
+    def params(self) -> dict:
+        """Return model parameters."""
+        return {
+            "model_identifier": self.identifier,
+            "model_class": self.__class__.__name__,
+            "patience": self._patience
+        }
 
-    ### Flattening
-    model.add(layers.Flatten())
+    def compile(self, learning_rate: float) -> None:
+        """Compile the model."""
+        raise NotImplementedError("Implement compile in a subclass.")
 
-    ### One Fully Connected layer - "Fully Connected" is equivalent to saying "Dense"
-    model.add(layers.Dense(10, activation='relu'))
+    def train(
+            self, train_dataset: tf.data.Dataset,
+            validation_dataset: tf.data.Dataset, patience: int) -> dict:
+        """Train the model on the provided datasets, return training history."""
+        print(Fore.BLUE + "👟 Training model..." + Style.RESET_ALL)
+        self._patience = patience
+        early_stopping = EarlyStopping(
+            monitor="val_loss", patience=patience, restore_best_weights=True,
+            verbose=1)
+        history = self._model.fit(
+            train_dataset, validation_data=validation_dataset,
+            epochs=100, callbacks=[early_stopping])
+        train_len = len(train_dataset.file_paths)  # type: ignore
+        val_accuracy = round(np.max(history.history['val_accuracy']), 3)
+        print(f"✅ Model trained on {train_len} images with validation"
+              f" accuracy: {val_accuracy}")
+        return history.history
 
-    ### Last layer - Classification Layer with n outputs corresponding to n celebrities
-    model.add(layers.Dense(class_nb, activation='softmax'))
+    def _model_path(self) -> str:
+        """Path to the model file."""
+        return f"models/{self.identifier}.keras"
 
-    print("✅ Model initialized")
-
-    return model
-
-
-def compile_model(model: Model, learning_rate=0.001) -> Model:
-    """Compile the Neural Network."""
-
-    optimizer = optimizers.Adam(learning_rate=learning_rate)
-    ### Model compilation
-    model.compile(loss='categorical_crossentropy',
-                  optimizer=optimizer,  # type: ignore
-                  metrics = ['accuracy'])
-
-    print("✅ Model compiled")
-
-    return model
+    def save(self, identifier: str) -> None:
+        """Save the model to the registry."""
+        save_model(self._model, identifier)
 
 
-def train_model(
-        model: Model,
-        train_dataset: Dataset,
-        validation_dataset: Dataset,
-        patience: int,
-    ) -> tuple[Model, dict]:
-    """Fit the model and return a tuple (fitted_model, history)."""
+class SimpleLeNetModel(Model):
+    """A simple LeNet-like model for image classification.
 
-    print(Fore.BLUE + "👟 Training model..." + Style.RESET_ALL)
+    This model is a baseline architecture similar to the one used for MNIST.
+    """
 
-    es = EarlyStopping(
-        monitor="val_loss",
-        patience=patience,
-        restore_best_weights=True,
-        verbose=1
-    )
+    @property
+    def identifier(self) -> str:
+        """Unique identifier for the model."""
+        return '-'.join([
+            "lenetv1",
+            f"r{self._learning_rate}",
+            f"p{self._patience}"])
 
-    history = model.fit(
-        train_dataset,
-        validation_data=validation_dataset,
-        epochs=100,
-        callbacks=[es],
-        verbose=1  # type: ignore
-    )
+    _learning_rate: float
 
-    # I guess cardinality should give the number of images, but it does not.
-    # train_len = train_dataset.cardinality().numpy().item()
-    train_len = len(train_dataset.file_paths)
-    min_val_accuracy = round(np.min(history.history['val_accuracy']), 2)
-    print(f"✅ Model trained on {train_len} images with min validation"
-          f" accuracy: {min_val_accuracy}")
+    def __init__(self, input_shape: tuple, class_nb: int):
+        super().__init__()
 
-    return model, history.history
+        self._model = Sequential([
+            Input(shape=input_shape),
+
+            # First Convolution & MaxPooling
+            layers.Conv2D(8, (4, 4), padding='same', activation="relu"),
+            layers.MaxPool2D(pool_size=(2, 2)),
+
+            # Second Convolution & MaxPooling
+            layers.Conv2D(16, (3, 3), activation="relu"),
+            layers.MaxPool2D(pool_size=(2, 2)),
+
+            # Flattening
+            layers.Flatten(),
+
+            # One Fully Connected layer
+            layers.Dense(10, activation='relu'),
+
+            # Classification Layer: n outputs corresponding to n celebrities
+            layers.Dense(class_nb, activation='softmax')])
+
+    def params(self) -> dict:
+        params = super().params()
+        params.update({
+            "learning_rate": self._learning_rate
+        })
+        return params
+
+    def compile(self, learning_rate: float) -> None:
+        self._learning_rate = learning_rate
+        optimizer = optimizers.Adam(learning_rate=learning_rate)
+        self._model.compile(
+            loss='categorical_crossentropy',
+            optimizer=optimizer,  # type: ignore
+            metrics=['accuracy'])
+        print("✅ Model compiled")
