@@ -5,7 +5,6 @@ fastapi
 python-multipart
 google-cloud-storage
 numpy
-pip-tools
 tensorflow
 tensorflow-metal; sys_platform == 'darwin' and 'ARM' in platform_version # GPU acceleration for Mac M-chips
 uvicorn
@@ -14,7 +13,11 @@ uvicorn
 ipdb
 ipykernel
 matplotlib
+mypy
 pandas
+pip-tools
 ruff
 scikit-learn
 seaborn
+types-colorama
+types-tensorflow

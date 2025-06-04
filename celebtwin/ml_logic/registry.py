@@ -3,10 +3,9 @@ import os
 import pickle
 from pathlib import Path
 
-import keras
+import keras  # type: ignore
 from celebtwin.params import LOCAL_REGISTRY_PATH, MODEL_TARGET, BUCKET_NAME
-from colorama import Fore, Style
-from google.cloud import storage
+from google.cloud import storage  # type: ignore
 
 
 def save_metadata(name: str, metadata: dict) -> None:

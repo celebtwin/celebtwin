@@ -1,8 +1,9 @@
-from os.path import isfile
-from os.path import dirname
+from pathlib import Path
 
-version_file = '{}/version.txt'.format(dirname(__file__))
+version_path = Path(__file__).parent / "version.txt"
 
-if isfile(version_file):
-    with open(version_file) as version_file:
+if version_path.is_file():
+    with open(version_path) as version_file:
         __version__ = version_file.read().strip()
+
+del Path, version_path

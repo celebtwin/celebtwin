@@ -35,7 +35,7 @@ async def create_upload_file(file: UploadFile, model: str | None = None):
     contents = file.file.read()
     with open(filepath_to_save, "wb") as file_to_write:
         file_to_write.write(contents)
-    img = load_image(path=filepath_to_save, image_size=64, num_channels=1, resize="pad")
+    img = load_image(path=filepath_to_save, image_size=64, num_channels=1)
 
     # TODO : call predict + process response
     return {"result": "result", "model": model, "filename": file.filename}

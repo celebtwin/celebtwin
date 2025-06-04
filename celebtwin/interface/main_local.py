@@ -68,8 +68,7 @@ if __name__ == '__main__':
     except Exception:
         import sys
         import traceback
-
-        import ipdb
+        import ipdb  # type: ignore
         extype, value, tb = sys.exc_info()
         traceback.print_exc()
         ipdb.post_mortem(tb)
