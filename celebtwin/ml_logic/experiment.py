@@ -1,6 +1,7 @@
 """Experiment management module.
 
-Experiments combine datasets, models, and training configurations to run a complete training and evaluation cycle.
+Experiments combine datasets, models, and training configurations to run a
+complete training and evaluation cycle.
 """
 
 import time
@@ -14,7 +15,8 @@ from celebtwin.ml_logic.registry import save_metadata
 class Experiment:
     """Class representing an experiment.
 
-    An experiment combines a dataset, a model, and training configurations to run a complete training and evaluation cycle.
+    An experiment combines a dataset, a model, and training configurations to
+    run a complete training and evaluation cycle.
     """
 
     def __init__(self, dataset: Dataset, model: Model, learning_rate: float,
