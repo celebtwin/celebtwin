@@ -1,6 +1,7 @@
 __pycache__
 .*
 *.ipynb
-/docs/
-/raw_data/
-/training_outputs/
+/raw_data
+/training_outputs
+/docs
+/download
