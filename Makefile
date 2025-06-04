@@ -2,7 +2,8 @@
 help:
 	echo "make setup   - creates the virtual env and install packages"
 	echo "make dataset - download the raw dataset"
-	echo "make run_api - start web services"
+	echo "make train   - train a model"
+	echo "make run_api - start web service"
 
 .PHONY: setup
 setup:
@@ -43,3 +44,7 @@ clean:
 .PHONY: run_api
 run_api:
 	uvicorn celebtwin.api.fast:app --reload
+
+.PHONY: train
+train:
+	python -c 'from celebtwin.interface.main_local import train; train()'

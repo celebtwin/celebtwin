@@ -2,6 +2,7 @@ import shutil
 from pathlib import Path
 from zipfile import ZIP_STORED, ZipFile
 
+import numpy as np
 import tensorflow as tf
 from keras.config import image_data_format
 from keras.preprocessing import image_dataset_from_directory
@@ -11,14 +12,15 @@ RAW_DATA = Path('raw_data')
 FULL_DATASET = RAW_DATA / '105_classes_pins_dataset'
 
 
-def make_dataset_loader(
+def load_dataset(
         image_size: int,
         num_classes: int | None = None,
         undersample: bool = False,
         color_mode: str = 'grayscale',
         resize: str = 'pad',
         batch_size: int = 32,
-        shuffle: bool = True):
+        shuffle: bool = True,
+        validation_split: float | None = None):
     assert 32 <= image_size <= 256  # Reasonable range
     assert isinstance(num_classes, int) or num_classes is None
     assert isinstance(undersample, bool)
@@ -31,17 +33,21 @@ def make_dataset_loader(
         crop, pad = _get_crop_pad(resize)
         return image_dataset_from_directory(
             str(FULL_DATASET),
+            label_mode='categorical',
             color_mode=color_mode,
             image_size=(image_size,) * 2,
             batch_size=batch_size,
             shuffle=shuffle,
+            seed=np.random.randint(10**6),
+            validation_split=validation_split,
+            subset='both' if validation_split is not None else None,
             crop_to_aspect_ratio=crop,
             pad_to_aspect_ratio=pad)
     builder = _DatasetBuilder(
         image_size, num_classes, undersample, color_mode, resize)
     if not builder.dataset_path.exists():
         builder.build_dataset()
-    return builder.load_dataset(batch_size, shuffle)
+    return builder.load_dataset(batch_size, shuffle, validation_split)
 
 
 def _get_crop_pad(resize):
@@ -67,24 +73,32 @@ class _DatasetBuilder:
 
     @property
     def dataset_name(self) -> str:
-        color_code = {'grayscale': 'gray', 'rgb': 'col'}[self._color_mode]
+        nclasses_code = \
+            f'nc{self._num_classes}-' if self._num_classes is not None else ''
         undersample_code = 'und-' if self._undersample else ''
+        color_code = {'grayscale': 'gray', 'rgb': 'col'}[self._color_mode]
         return (
-            f'v1-{self._image_size}-{undersample_code}{color_code}'
-            f'-{self._resize[:3]}')
+            f'v1-{self._image_size}-{nclasses_code}{undersample_code}'
+            f'{color_code}-{self._resize[:3]}')
 
     @property
     def dataset_path(self) -> Path:
         return RAW_DATA / self.dataset_name
 
-    def load_dataset(self, batch_size: int, shuffle: bool):
+    def load_dataset(
+            self, batch_size: int, shuffle: bool,
+            validation_split: float | None = None):
         crop, pad = _get_crop_pad(self._resize)
         return image_dataset_from_directory(
             str(self.dataset_path),
+            label_mode='categorical',
             color_mode=self._color_mode,
             image_size=(self._image_size,) * 2,
             batch_size=batch_size,
             shuffle=shuffle,
+            seed=np.random.randint(10**6),
+            validation_split=validation_split,
+            subset='both' if validation_split is not None else None,
             crop_to_aspect_ratio=crop,
             pad_to_aspect_ratio=pad)
 
