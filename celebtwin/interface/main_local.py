@@ -57,7 +57,7 @@ def pred(X_pred: pd.DataFrame = None) -> np.ndarray:
     X_processed = preprocess_features(X_pred)
     y_pred = model.predict(X_processed)
 
-    print(f"✅ pred() done")
+    print("✅ pred() done")
 
     return y_pred
 

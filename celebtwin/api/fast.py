@@ -1,12 +1,10 @@
-from typing import Annotated
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 # from tempfile import SpooledTemporaryFile
 from pathlib import Path
 
 from celebtwin.params import LOCAL_DOWNLOAD_IMAGES_PATH
-from celebtwin.ml_logic.registry import load_model
 from celebtwin.ml_logic.data import load_image
 
 app = FastAPI()
