@@ -68,7 +68,10 @@ class SimpleLeNetModel(Model):
     @property
     def identifier(self) -> str:
         """Unique identifier for the model."""
-        return "lenetv1"
+        return '-'.join([
+            "lenetv1",
+            f"r{self._learning_rate}",
+            f"p{self._patience}"])
 
     _learning_rate: float
 
