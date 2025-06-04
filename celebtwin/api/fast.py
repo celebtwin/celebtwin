@@ -30,6 +30,7 @@ def setmodel(model_version: str):
 @app.post("/predict/")
 async def create_upload_file(file: UploadFile, model: str | None = None):
     Path(LOCAL_DOWNLOAD_IMAGES_PATH).mkdir(parents=True, exist_ok=True)
+    assert file.filename is not None
     filepath_to_save = Path(LOCAL_DOWNLOAD_IMAGES_PATH) / file.filename
     contents = file.file.read()
     with open(filepath_to_save, "wb") as file_to_write:
