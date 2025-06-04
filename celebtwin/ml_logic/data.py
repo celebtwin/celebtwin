@@ -1,12 +1,13 @@
 import shutil
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from zipfile import ZIP_STORED, ZipFile
 
+import keras.src.utils.image_dataset_utils
 import numpy as np
 import tensorflow as tf
 from keras.config import image_data_format
 from keras.preprocessing import image_dataset_from_directory
-from keras.src.utils.image_dataset_utils import load_image
 
 RAW_DATA = Path('raw_data')
 FULL_DATASET = RAW_DATA / '105_classes_pins_dataset'
@@ -50,7 +51,7 @@ def load_dataset(
     return builder.load_dataset(batch_size, shuffle, validation_split)
 
 
-def _get_crop_pad(resize):
+def _get_crop_pad(resize: str) -> tuple[bool, bool]:
     return {
         'pad': (False, True), 'crop': (True, False),
         'distort': (False, False)}[resize]
@@ -109,13 +110,11 @@ class _DatasetBuilder:
         """
         dsname = self.dataset_name
         tmp_dir = RAW_DATA / (dsname + '.tmp')
-
         num_channels = {'grayscale': 1, 'rgb': 3}[self._color_mode]
-        crop, pad = _get_crop_pad(self._resize)
 
-        def inner_load_image(path):
+        def inner_load_image(path: Path) -> np.ndarray:
             return load_image(
-                str(path), (self._image_size,) * 2, num_channels, 'bilinear', image_data_format(), crop, pad)
+                path, self._image_size, num_channels, self._resize)
 
         with _ImageWriter(RAW_DATA, dsname) as image_writer:
             for input_image_path, image_tensor in _iter_read_images(
@@ -128,13 +127,24 @@ class _DatasetBuilder:
                 image_writer.write_image(class_name, image_name, image_tensor)
 
 
-def _image_number(path):
+def load_image(path: Path | str, image_size: int, num_channels: int,
+               resize: str = 'pad') -> np.ndarray:
+    """Load one image as a numpy array using keras."""
+    crop, pad = _get_crop_pad(resize)
+    return keras.src.utils.image_dataset_utils.load_image(
+        str(path), (image_size,) * 2, num_channels, 'bilinear',
+        image_data_format(), crop, pad)
+
+
+def _image_number(path: Path) -> int:
     # Images in the input data are named like 'Adriana Lima101_3.jpg', where
     # the image number is the part after the underscore.
     return int(path.stem.split('_')[1])
 
 
-def _iter_read_images(base_dir, inner_load_image, num_classes, undersample):
+def _iter_read_images(
+        base_dir: Path, inner_load_image: Callable[[Path], np.ndarray], num_classes: int, undersample: bool) \
+        -> Iterator[tuple[Path, np.ndarray]]:
     input_class_dirs = list(sorted(
         x for x in base_dir.iterdir()
         if x.is_dir() and not x.name.startswith('.')))
@@ -160,7 +170,7 @@ def _iter_read_images(base_dir, inner_load_image, num_classes, undersample):
 
 class _ImageWriter:
 
-    def __init__(self, data_dir, data_name):
+    def __init__(self, data_dir: Path, data_name: str):
         self._data_dir = data_dir
         self._data_name = data_name
         self._tmp_dir = self._target_path('.tmp')
@@ -173,7 +183,7 @@ class _ImageWriter:
         # Do not compress the zip data, jpeg files are already compressed.
         self._zipfile = ZipFile(self._zip_path, 'w', ZIP_STORED)
 
-    def _target_path(self, suffix=''):
+    def _target_path(self, suffix: str = '') -> Path:
         return self._data_dir / (self._data_name + suffix)
 
     def __enter__(self):
@@ -188,9 +198,10 @@ class _ImageWriter:
             self._zip_path.unlink()
             shutil.rmtree(self._tmp_dir)
 
-    def write_image(self, class_name, image_name, image_tensor):
+    def write_image(
+            self, class_name: str, image_name: str, image_tensor: np.ndarray):
         jpeg_tensor = tf.image.encode_jpeg(tf.cast(image_tensor, tf.uint8))
-        jpeg_bytes = jpeg_tensor.numpy()
+        jpeg_bytes = jpeg_tensor.numpy()  # type: ignore
         output_dir = self._tmp_dir / class_name
         output_dir.mkdir(exist_ok=True)
         with open(output_dir / image_name, 'wb') as output_file:

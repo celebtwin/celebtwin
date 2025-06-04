@@ -1,25 +1,14 @@
-import numpy as np
 import time
 
+import numpy as np
 from colorama import Fore, Style
-from typing import Tuple
-
-# Timing the TF import
-print(Fore.BLUE + "\nLoading TensorFlow..." + Style.RESET_ALL)
-start = time.perf_counter()
-
-from tensorflow.data import Dataset
-from keras import Model, Sequential, layers, regularizers, optimizers, Input
+from keras import Input, Model, Sequential, layers, optimizers
 from keras.callbacks import EarlyStopping
-
-end = time.perf_counter()
-print(f"\n✅ TensorFlow loaded ({round(end - start, 2)}s)")
+from tensorflow.data import Dataset
 
 
 def initialize_model(input_shape: tuple, class_nb: int, colors: bool = True) -> Model:
-    """
-    Initialize the Neural Network with random weights
-    """
+    """Initialize the Neural Network with random weights."""
     # 3 or 1 depending on 'colors' value (True or False)
     nb_channels = 3 if colors else 1
 
@@ -51,9 +40,7 @@ def initialize_model(input_shape: tuple, class_nb: int, colors: bool = True) -> 
 
 
 def compile_model(model: Model, learning_rate=0.001) -> Model:
-    """
-    Compile the Neural Network
-    """
+    """Compile the Neural Network."""
 
     optimizer = optimizers.Adam(learning_rate=learning_rate)
     ### Model compilation
@@ -71,12 +58,10 @@ def train_model(
         train_dataset: Dataset,
         validation_dataset: Dataset,
         patience: int,
-    ) -> Tuple[Model, dict]:
-    """
-    Fit the model and return a tuple (fitted_model, history)
-    """
+    ) -> tuple[Model, dict]:
+    """Fit the model and return a tuple (fitted_model, history)."""
 
-    print(Fore.BLUE + "\nTraining model..." + Style.RESET_ALL)
+    print(Fore.BLUE + "👟 Training model..." + Style.RESET_ALL)
 
     es = EarlyStopping(
         monitor="val_loss",

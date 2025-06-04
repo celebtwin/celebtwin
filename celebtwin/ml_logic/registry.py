@@ -11,10 +11,10 @@ from google.cloud import storage
 
 
 def save_results(params: dict, metrics: dict):
-    """
-    Persist params & metrics locally on the hard drive at
-    "{LOCAL_REGISTRY_PATH}/params/{current_timestamp}.pickle"
-    "{LOCAL_REGISTRY_PATH}/metrics/{current_timestamp}.pickle"
+    """Persist params & metrics locally.
+
+    - {LOCAL_REGISTRY_PATH}/params/{current_timestamp}.pickle
+    - {LOCAL_REGISTRY_PATH}/metrics/{current_timestamp}.pickle
     """
     timestamp = time.strftime("%Y%m%d-%H%M%S")
     registry = Path(LOCAL_REGISTRY_PATH)
@@ -38,16 +38,12 @@ def save_results(params: dict, metrics: dict):
     print("✅ Results saved locally")
 
 
-def _maybe_mkdir(path: Path):
-    if not path.exists():
-        path.mkdir()
-
-
 def save_model(model: keras.Model):
-    """
-    Persist trained model locally on the hard drive at f"{LOCAL_REGISTRY_PATH}/models/{timestamp}.h5"
-    - if MODEL_TARGET='gcs', also persist it in your bucket on GCS at "models/{timestamp}.h5" --> unit 02 only
-    - if MODEL_TARGET='mlflow', also persist it on MLflow instead of GCS (for unit 0703 only) --> unit 03 only
+    """Persist trained model locally on the hard drive.
+
+    Save model at f"{LOCAL_REGISTRY_PATH}/models/{timestamp}.h5"
+
+    If MODEL_TARGET='gcs', also persist it in your bucket on GCS at "models/{timestamp}.h5"
     """
 
     timestamp = time.strftime("%Y%m%d-%H%M%S")
@@ -67,8 +63,7 @@ def save_model(model: keras.Model):
 
 
 def load_model() -> keras.Model:
-    """
-    Return a saved model:
+    """Return a saved model.
 
     - locally (latest one in alphabetical order)
     - or from GCS (most recent one) if MODEL_TARGET=='gcs'
@@ -77,7 +72,7 @@ def load_model() -> keras.Model:
     """
 
     if MODEL_TARGET == "local":
-        print(Fore.BLUE + f"\nLoad latest model from local registry..." + Style.RESET_ALL)
+        print(Fore.BLUE + f"Load latest model from local registry..." + Style.RESET_ALL)
 
         # Get the latest model version name by the timestamp on disk
         local_model_directory = os.path.join(LOCAL_REGISTRY_PATH, "models")
@@ -88,7 +83,7 @@ def load_model() -> keras.Model:
 
         most_recent_model_path_on_disk = sorted(local_model_paths)[-1]
 
-        print(Fore.BLUE + f"\nLoad latest model from disk..." + Style.RESET_ALL)
+        print(Fore.BLUE + f"Load latest model from disk..." + Style.RESET_ALL)
 
         latest_model = keras.models.load_model(most_recent_model_path_on_disk)
 
@@ -97,7 +92,7 @@ def load_model() -> keras.Model:
         return latest_model
 
     elif MODEL_TARGET == "gcs":
-        print(Fore.BLUE + f"\nLoad latest model from GCS..." + Style.RESET_ALL)
+        print(Fore.BLUE + f"Load latest model from GCS..." + Style.RESET_ALL)
 
         client = storage.Client()
         blobs = list(client.get_bucket(BUCKET_NAME).list_blobs(prefix="model"))
@@ -113,6 +108,6 @@ def load_model() -> keras.Model:
 
             return latest_model
         except:
-            print(f"\n❌ No model found in GCS bucket {BUCKET_NAME}")
+            print(f"❌ No model found in GCS bucket {BUCKET_NAME}")
 
             return None
