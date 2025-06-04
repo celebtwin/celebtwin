@@ -2,6 +2,7 @@
 click
 colorama
 fastapi
+python-multipart
 google-cloud-storage
 numpy
 pip-tools
