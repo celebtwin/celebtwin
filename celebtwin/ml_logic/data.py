@@ -1,5 +1,6 @@
 import shutil
 from collections.abc import Callable, Iterator
+from enum import StrEnum, auto
 from pathlib import Path
 from zipfile import ZIP_STORED, ZipFile
 
@@ -11,112 +12,174 @@ from keras.preprocessing import image_dataset_from_directory
 
 RAW_DATA = Path('raw_data')
 FULL_DATASET = RAW_DATA / '105_classes_pins_dataset'
+TOTAL_CLASSES = 105
 
 
-def load_dataset(
-        image_size: int,
-        num_classes: int | None = None,
-        undersample: bool = False,
-        color_mode: str = 'grayscale',
-        resize: str = 'pad',
-        batch_size: int = 32,
-        shuffle: bool = True,
-        validation_split: float | None = None):
-    assert 32 <= image_size <= 256  # Reasonable range
-    assert isinstance(num_classes, int) or num_classes is None
-    assert isinstance(undersample, bool)
-    assert color_mode in ('grayscale', 'rgb')
-    assert resize in ('pad', 'crop', 'distort')
+class Dataset:
+    """Data used for training and evaluation."""
 
-    if num_classes is None and not undersample:
-        # Image resizing is fast compared to model fitting. If we work on the
-        # full dataset, just use image_dataset_from_directory.
-        crop, pad = _get_crop_pad(resize)
-        return image_dataset_from_directory(
-            str(FULL_DATASET),
-            label_mode='categorical',
-            color_mode=color_mode,
-            image_size=(image_size,) * 2,
-            batch_size=batch_size,
-            shuffle=shuffle,
-            seed=np.random.randint(10**6),
-            validation_split=validation_split,
-            subset='both' if validation_split is not None else None,
-            crop_to_aspect_ratio=crop,
-            pad_to_aspect_ratio=pad)
-    builder = _DatasetBuilder(
-        image_size, num_classes, undersample, color_mode, resize)
-    if not builder.dataset_path.exists():
-        builder.build_dataset()
-    return builder.load_dataset(batch_size, shuffle, validation_split)
+    def __init__(self, num_classes: int):
+        self.num_classes = num_classes
+
+    def load(self) -> tuple[tf.data.Dataset, tf.data.Dataset]:
+        """Load the dataset.
+
+        Returns:
+            tuple: A tuple containing the training dataset and validation dataset.
+        """
+        raise NotImplementedError("Implement load in a subclass.")
+
+    @property
+    def identifier(self) -> str:
+        """Unique identifier for the dataset."""
+        raise NotImplementedError("Implement identifier in a subclass.")
+
+    def params(self) -> dict:
+        """Return the parameters of the dataset as a dictionary."""
+        raise NotImplementedError("Implement params in a subclass.")
+
+    def preprocess_prediction(self, path: str) -> tf.Tensor:
+        """Load an image and apply preprocessing for prediction."""
+        raise NotImplementedError(
+            "Implement preprocess_prediction in a subclass.")
 
 
-def _get_crop_pad(resize: str) -> tuple[bool, bool]:
-    return {
-        'pad': (False, True), 'crop': (True, False),
-        'distort': (False, False)}[resize]
+class ColorMode(StrEnum):
+    """Color modes for image datasets."""
+    GRAYSCALE = auto()
+    RGB = auto()
+
+    def id_part(self):
+        """Short identifier used to build dataset names."""
+        return {ColorMode.GRAYSCALE: 'g', ColorMode.RGB: 'c'}[self]
+
+    def num_channels(self) -> int:
+        """Return the number of channels for the color mode."""
+        return {ColorMode.GRAYSCALE: 1, ColorMode.RGB: 3}[self]
 
 
-class _DatasetBuilder:
+class ResizeMode(StrEnum):
+    """Resize modes for image datasets."""
+    PAD = auto()
+    CROP = auto()
+    DISTORT = auto()
+
+    def id_part(self):
+        """Short identifier used to build dataset names."""
+        return {
+            ResizeMode.PAD: None,
+            ResizeMode.CROP: 'crop',
+            ResizeMode.DISTORT: 'dist'
+        }[self]
+
+    def as_crop_pad(self) -> tuple[bool, bool]:
+        """Return crop and pad flags for the resize mode."""
+        return {
+            ResizeMode.PAD: (False, True),
+            ResizeMode.CROP: (True, False),
+            ResizeMode.DISTORT: (False, False)
+        }[self]
+
+
+class SimpleDataset(Dataset):
+    """A simple dataset that reads images from a directory.
+
+    The resized image subset is cached in a directory and a zip file.
+    """
 
     def __init__(
             self,
             image_size: int,
-            num_classes: int | None = None,
+            num_classes: int = TOTAL_CLASSES,
             undersample: bool = False,
-            color_mode: str = 'grayscale',
-            resize: str = 'pad'):
+            color_mode: ColorMode = ColorMode.GRAYSCALE,
+            resize: ResizeMode = ResizeMode.PAD,
+            batch_size: int = 32,
+            shuffle: bool = True,
+            validation_split: float = 0):
+        super().__init__(num_classes)
+        assert 32 <= image_size <= 256  # Reasonable range
+        assert isinstance(num_classes, int) or num_classes is None
+        assert isinstance(undersample, bool)
+        assert color_mode in ColorMode
+        assert resize in ResizeMode
+        if validation_split <= 0 or validation_split >= 1:
+            raise ValueError(
+                'validation_split must a float between 0 and 1.')
         self._image_size = image_size
         self._num_classes = num_classes
         self._undersample = undersample
         self._color_mode = color_mode
         self._resize = resize
+        self._batch_size = batch_size
+        self._shuffle = shuffle
+        self._validation_split = validation_split
 
     @property
-    def dataset_name(self) -> str:
-        nclasses_code = \
-            f'nc{self._num_classes}-' if self._num_classes is not None else ''
-        undersample_code = 'und-' if self._undersample else ''
-        color_code = {'grayscale': 'gray', 'rgb': 'col'}[self._color_mode]
-        return (
-            f'v1-{self._image_size}-{nclasses_code}{undersample_code}'
-            f'{color_code}-{self._resize[:3]}')
+    def identifier(self) -> str:
+        """Unique identifier for the dataset."""
+        parts = [
+            'v1', str(self._image_size), self._color_mode.id_part(),
+            f'c{self._num_classes}' if self._num_classes != TOTAL_CLASSES
+            else None,
+            'und' if self._undersample else None,
+            self._resize.id_part()]
+        return '-'.join(filter(None, parts))
 
-    @property
-    def dataset_path(self) -> Path:
-        return RAW_DATA / self.dataset_name
+    def params(self) -> dict:
+        """Return the parameters of the dataset as a dictionary."""
+        return {
+            'dataset_class': self.__class__.__name__,
+            'dataset_identifier': self.identifier,
+            'image_size': self._image_size,
+            'num_classes': self._num_classes,
+            'undersample': self._undersample,
+            'color_mode': self._color_mode.name.lower(),
+            'resize': self._resize.name.lower(),
+            'batch_size': self._batch_size,
+            'shuffle': self._shuffle,
+            'validation_split': self._validation_split
+        }
 
-    def load_dataset(
-            self, batch_size: int, shuffle: bool,
-            validation_split: float | None = None):
-        crop, pad = _get_crop_pad(self._resize)
-        return image_dataset_from_directory(
-            str(self.dataset_path),
+    def _dataset_path(self) -> Path:
+        """Return the path to the dataset directory."""
+        return RAW_DATA / self.identifier
+
+    def load(self) -> tuple[tf.data.Dataset, tf.data.Dataset]:
+        """Load the dataset.
+
+        Returns:
+            tuple: A tuple containing the training dataset and validation dataset.
+        """
+        if not self._dataset_path().exists():
+            self._build_dataset()
+        crop, pad = self._resize.as_crop_pad()
+        train_data, val_data = image_dataset_from_directory(
+            str(self._dataset_path()),
             label_mode='categorical',
             color_mode=self._color_mode,
             image_size=(self._image_size,) * 2,
-            batch_size=batch_size,
-            shuffle=shuffle,
+            batch_size=self._batch_size,
+            shuffle=self._shuffle,
             seed=np.random.randint(10**6),
-            validation_split=validation_split,
-            subset='both' if validation_split is not None else None,
+            validation_split=self._validation_split,
+            subset='both',
             crop_to_aspect_ratio=crop,
             pad_to_aspect_ratio=pad)
+        return train_data, val_data
 
-    def build_dataset(self):
+    def _build_dataset(self) -> None:
         """Build a dataset directory and zip file.
 
-        The directory is created at `self.dataset_path`.
+        The directory is created at `self._dataset_path()`.
         """
-        dsname = self.dataset_name
-        tmp_dir = RAW_DATA / (dsname + '.tmp')
-        num_channels = {'grayscale': 1, 'rgb': 3}[self._color_mode]
+        num_channels = self._color_mode.num_channels()
 
         def inner_load_image(path: Path) -> np.ndarray:
             return load_image(
                 path, self._image_size, num_channels, self._resize)
 
-        with _ImageWriter(RAW_DATA, dsname) as image_writer:
+        with _ImageWriter(RAW_DATA, self.identifier) as image_writer:
             for input_image_path, image_tensor in _iter_read_images(
                     FULL_DATASET, inner_load_image, self._num_classes,
                     self._undersample):
@@ -128,9 +191,9 @@ class _DatasetBuilder:
 
 
 def load_image(path: Path | str, image_size: int, num_channels: int,
-               resize: str = 'pad') -> np.ndarray:
+               resize: ResizeMode = ResizeMode.PAD) -> np.ndarray:
     """Load one image as a numpy array using keras."""
-    crop, pad = _get_crop_pad(resize)
+    crop, pad = resize.as_crop_pad()
     return keras.src.utils.image_dataset_utils.load_image(
         str(path), (image_size,) * 2, num_channels, 'bilinear',
         image_data_format(), crop, pad)
@@ -148,8 +211,7 @@ def _iter_read_images(
     input_class_dirs = list(sorted(
         x for x in base_dir.iterdir()
         if x.is_dir() and not x.name.startswith('.')))
-    if num_classes is None:
-        num_classes = len(input_class_dirs)
+    assert 0 < num_classes <= len(input_class_dirs)
     input_class_dirs = input_class_dirs[:num_classes]
     sample_size = None
     image_glob = '*.jpg'

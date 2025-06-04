@@ -10,54 +10,46 @@ from colorama import Fore, Style
 from google.cloud import storage
 
 
-def save_results(params: dict, metrics: dict):
-    """Persist params & metrics locally.
+def save_metadata(name: str, metadata: dict) -> None:
+    """Persist parameters, metrics and history locally.
 
-    - {LOCAL_REGISTRY_PATH}/params/{current_timestamp}.pickle
-    - {LOCAL_REGISTRY_PATH}/metrics/{current_timestamp}.pickle
+    Save metadata in {LOCAL_REGISTRY_PATH}/metadata.
+
+    If MODEL_TARGET='gcs', also upload to GCS in metadata folder.
     """
-    timestamp = time.strftime("%Y%m%d-%H%M%S")
     registry = Path(LOCAL_REGISTRY_PATH)
-
-    # Save params locally
-    if params is not None:
-        param_dir = registry / 'params'
-        os.makedirs(param_dir, exist_ok=True)
-        params_path = param_dir / (timestamp + ".pickle")
-        with open(params_path, "wb") as file:
-            pickle.dump(params, file)
-
-    # Save metrics locally
-    if metrics is not None:
-        metrics_dir = registry / 'metrics'
-        os.makedirs(metrics_dir, exist_ok=True)
-        metrics_path = metrics_dir / (timestamp + ".pickle")
-        with open(metrics_path, "wb") as file:
-            pickle.dump(metrics, file)
-
+    metadata_dir = registry / 'metadata'
+    os.makedirs(metadata_dir, exist_ok=True)
+    metadata_path = metadata_dir / (name + ".pickle")
+    with open(metadata_path, "wb") as file:
+        pickle.dump(metadata, file)
     print("✅ Results saved locally")
 
+    if MODEL_TARGET == "gcs":
+        client = storage.Client()
+        bucket = client.bucket(BUCKET_NAME)
+        blob = bucket.blob(f"metadata/{name}.pickle")
+        blob.upload_from_filename(metadata_path)
+        print("✅ Results saved to GCS")
 
-def save_model(model: keras.Model):
-    """Persist trained model locally on the hard drive.
 
-    Save model at f"{LOCAL_REGISTRY_PATH}/models/{timestamp}.h5"
+def save_model(model: keras.Model, identifier: str):
+    """Save trained model locally, and optionally on GCS.
 
-    If MODEL_TARGET='gcs', also persist it in your bucket on GCS at "models/{timestamp}.h5"
+    Save model in {LOCAL_REGISTRY_PATH}/models.
+
+    If MODEL_TARGET='gcs', also upload to GCS in models/staging folder.
     """
-
-    timestamp = time.strftime("%Y%m%d-%H%M%S")
-
-    model_path = os.path.join(LOCAL_REGISTRY_PATH, "models", f"{timestamp}.h5")
-    model.save(model_path)
-
+    models_dir = Path(LOCAL_REGISTRY_PATH) / "models"
+    os.makedirs(models_dir, exist_ok=True)
+    model_path = models_dir / f"{identifier}.keras"
+    model.save(str(model_path))
     print("✅ Model saved locally")
 
     if MODEL_TARGET == "gcs":
-        model_filename = model_path.split("/")[-1] # e.g. "20230208-161047.h5" for instance
         client = storage.Client()
         bucket = client.bucket(BUCKET_NAME)
-        blob = bucket.blob(f"models/{model_filename}")
+        blob = bucket.blob(f"models/staging/{model_path.name}")
         blob.upload_from_filename(model_path)
         print("✅ Model saved to GCS")
 
@@ -99,7 +91,8 @@ def load_model() -> keras.Model:
 
         try:
             latest_blob = max(blobs, key=lambda x: x.updated)
-            latest_model_path_to_save = os.path.join(LOCAL_REGISTRY_PATH, latest_blob.name)
+            latest_model_path_to_save = os.path.join(
+                LOCAL_REGISTRY_PATH, latest_blob.name)
             latest_blob.download_to_filename(latest_model_path_to_save)
 
             latest_model = keras.models.load_model(latest_model_path_to_save)
