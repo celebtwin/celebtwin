@@ -1,9 +1,9 @@
 .PHONY: help
 help:
-	echo "make setup   - creates the virtual env and install packages"
-	echo "make dataset - download the raw dataset"
-	echo "make train   - train a model"
-	echo "make run_api - start web service"
+	@echo "make setup   - creates the virtual env and install packages"
+	@echo "make dataset - download the raw dataset"
+	@echo "make train   - train a model"
+	@echo "make run_api - start web services"
 
 .PHONY: setup
 setup:
@@ -37,9 +37,9 @@ reset_local_files:
 	rm -rf ${ML_DIR}
 	mkdir -p ${ML_DIR}
 
-.PHONY: clean
+.PHONY: cleans
 clean:
-	@rm -fr **/__pycache__ **/*.pyc
+	rm -fr **/__pycache__ **/*.pyc
 
 .PHONY: run_api
 run_api:
