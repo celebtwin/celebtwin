@@ -80,6 +80,7 @@ class SimpleLeNetModel(Model):
 
         self._model = Sequential([
             Input(shape=input_shape),
+            layers.Rescaling(1.0 / 255),  # Normalize pixel values
 
             # First Convolution & MaxPooling
             layers.Conv2D(8, (4, 4), padding='same', activation="relu"),
