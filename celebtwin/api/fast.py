@@ -33,18 +33,9 @@ def setmodel(model_version: str):
 async def create_upload_file(file: UploadFile, model: str | None = None):
     Path(LOCAL_DOWNLOAD_IMAGES_PATH).mkdir(parents=True, exist_ok=True)
     filepath_to_save = Path(LOCAL_DOWNLOAD_IMAGES_PATH) / file.filename
-    try:
-        contents = file.file.read()
-        with open(filepath_to_save, "wb") as f:
-            f.write(contents)
-    except IOError as e:
-        print(f"I/O error({e.errno}): {e.strerror}")
-        raise HTTPException(status_code=500, detail="Something went wrong")
-    except Exception:
-        raise HTTPException(status_code=500, detail="Something went wrong")
-    finally:
-        file.file.close()
-
+    contents = file.file.read()
+    with open(filepath_to_save, "wb") as file_to_write:
+        file_to_write.write(contents)
     img = load_image(path=filepath_to_save, image_size=64, num_channels=1, resize="pad")
 
     # TODO : call predict + process response
