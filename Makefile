@@ -4,6 +4,7 @@ help:
 	@echo "make dataset - download the raw dataset"
 	@echo "make train   - train a model"
 	@echo "make run_api - start web services"
+	@echo "make lint    - run code analysis and style checks"
 
 .PHONY: setup
 setup:
@@ -48,3 +49,8 @@ run_api:
 .PHONY: train
 train:
 	python -m celebtwin train
+
+.PHONY: lint
+lint:
+	-ruff check celebtwin
+	-mypy celebtwin
