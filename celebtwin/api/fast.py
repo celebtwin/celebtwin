@@ -38,7 +38,7 @@ async def create_upload_file(file: UploadFile, model: str | None = None):
         with open(filepath_to_save, "wb") as f:
             f.write(contents)
     except IOError as e:
-        print("I/O error({0}): {1}".format(e.errno, e.strerror))
+        print(f"I/O error({e.errno}): {e.strerror}")
         raise HTTPException(status_code=500, detail="Something went wrong")
     except Exception:
         raise HTTPException(status_code=500, detail="Something went wrong")
