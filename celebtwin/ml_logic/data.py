@@ -1,6 +1,6 @@
 import shutil
 from collections.abc import Callable, Iterator
-from enum import StrEnum, auto
+from enum import Enum, auto
 from pathlib import Path
 from zipfile import ZIP_STORED, ZipFile
 
@@ -47,10 +47,10 @@ class Dataset:
         raise NotImplementedError("Implement load_prediction in a subclass.")
 
 
-class ColorMode(StrEnum):
+class ColorMode(str, Enum):
     """Color modes for image datasets."""
-    GRAYSCALE = auto()
-    RGB = auto()
+    GRAYSCALE = 'grayscale'
+    RGB = 'rgb'
 
     def id_part(self):
         """Short identifier used to build dataset names."""
@@ -61,11 +61,11 @@ class ColorMode(StrEnum):
         return {ColorMode.GRAYSCALE: 1, ColorMode.RGB: 3}[self]
 
 
-class ResizeMode(StrEnum):
+class ResizeMode(str, Enum):
     """Resize modes for image datasets."""
-    PAD = auto()
-    CROP = auto()
-    DISTORT = auto()
+    PAD = 'pad'
+    CROP = 'crop'
+    DISTORT = 'distort'
 
     def id_part(self):
         """Short identifier used to build dataset names."""
