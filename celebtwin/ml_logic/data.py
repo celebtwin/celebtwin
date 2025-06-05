@@ -18,8 +18,12 @@ TOTAL_CLASSES = 105
 class Dataset:
     """Data used for training and evaluation."""
 
+    num_classes: int
+    class_names: list[str] | None
+
     def __init__(self, num_classes: int):
         self.num_classes = num_classes
+        self.class_names = None
 
     def load(self) -> tuple[tf.data.Dataset, tf.data.Dataset]:
         """Load the dataset.
@@ -38,10 +42,9 @@ class Dataset:
         """Return the parameters of the dataset as a dictionary."""
         raise NotImplementedError("Implement params in a subclass.")
 
-    def preprocess_prediction(self, path: str) -> tf.Tensor:
+    def load_prediction(self, path: Path) -> np.ndarray:
         """Load an image and apply preprocessing for prediction."""
-        raise NotImplementedError(
-            "Implement preprocess_prediction in a subclass.")
+        raise NotImplementedError("Implement load_prediction in a subclass.")
 
 
 class ColorMode(StrEnum):
@@ -80,6 +83,21 @@ class ResizeMode(StrEnum):
             ResizeMode.DISTORT: (False, False)
         }[self]
 
+
+def load_dataset(params: dict) -> Dataset:
+    assert params['dataset_class'] == SimpleDataset.__name__, \
+        f"Unexpected dataset class: {params['dataset_class']}"
+    dataset = SimpleDataset(
+        params['image_size'],
+        params['num_classes'],
+        params['undersample'],
+        ColorMode[params['color_mode'].upper()],
+        ResizeMode[params['resize'].upper()],
+        params['batch_size'],
+        params['shuffle'],
+        params['validation_split'])
+    dataset.class_names = params['class_names']
+    return dataset
 
 class SimpleDataset(Dataset):
     """A simple dataset that reads images from a directory.
@@ -135,8 +153,8 @@ class SimpleDataset(Dataset):
             'image_size': self._image_size,
             'num_classes': self._num_classes,
             'undersample': self._undersample,
-            'color_mode': self._color_mode.name.lower(),
-            'resize': self._resize.name.lower(),
+            'color_mode': self._color_mode.value,
+            'resize': self._resize.value,
             'batch_size': self._batch_size,
             'shuffle': self._shuffle,
             'validation_split': self._validation_split,
@@ -191,6 +209,11 @@ class SimpleDataset(Dataset):
                 number = _image_number(input_image_path)
                 image_name = f"{class_name}_{number:03}.jpg"
                 image_writer.write_image(class_name, image_name, image_tensor)
+
+    def load_prediction(self, path: Path) -> np.ndarray:
+        return load_image(
+            path, self._image_size, self._color_mode.num_channels(),
+            self._resize)
 
 
 def load_image(path: Path | str, image_size: int, num_channels: int,

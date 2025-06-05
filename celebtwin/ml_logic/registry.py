@@ -1,11 +1,15 @@
-import glob
+from glob import glob
 import json
 import os
 from pathlib import Path
 
 import keras  # type: ignore
+from celebtwin.ml_logic import experiment
 from celebtwin.params import BUCKET_NAME, LOCAL_REGISTRY_PATH, MODEL_TARGET
 from google.cloud import storage  # type: ignore
+
+models_dir = Path(LOCAL_REGISTRY_PATH) / "models"
+metadata_dir = Path(LOCAL_REGISTRY_PATH) / "metadata"
 
 
 def save_metadata(name: str, metadata: dict) -> None:
@@ -15,8 +19,6 @@ def save_metadata(name: str, metadata: dict) -> None:
 
     If MODEL_TARGET='gcs', also upload to GCS in metadata folder.
     """
-    registry = Path(LOCAL_REGISTRY_PATH)
-    metadata_dir = registry / 'metadata'
     os.makedirs(metadata_dir, exist_ok=True)
     metadata_path = metadata_dir / (name + ".json")
     with open(metadata_path, "wt", encoding="utf-8") as file:
@@ -39,7 +41,6 @@ def save_model(model: keras.Model, identifier: str):
 
     If MODEL_TARGET='gcs', also upload to GCS in models/staging folder.
     """
-    models_dir = Path(LOCAL_REGISTRY_PATH) / "models"
     os.makedirs(models_dir, exist_ok=True)
     model_path = models_dir / f"{identifier}.keras"
     model.save(str(model_path))
@@ -57,48 +58,55 @@ class NoModelFoundError(Exception):
     """Exception raised when no model is found in the registry."""
     pass
 
+
 class NoLocalModelFoundError(NoModelFoundError):
     def __str__(self):
         return "❌ No model found in local registry."
 
+
 class NoGCSModelFoundError(NoModelFoundError):
     def __str__(self):
-        return f"❌ No model found in GCS bucket {BUCKET_NAME}."
+        return f"❌ No production model found in GCS bucket {BUCKET_NAME}."
 
 
-def load_model() -> keras.Model:
-    """Return a saved model.
+def load_latest_experiment() -> 'experiment.Experiment':
+    """Return the latest experiment from disk or the production from GCS.
 
-    - locally (latest one in alphabetical order)
-    - or from GCS (most recent one) if MODEL_TARGET=='gcs'
+    If MODEL_TARGET is 'gcs', find the latest experiment in production, download it if needed, and return it. The experiment is cached locally.
 
-    Raises NoModelFoundError if no model is found in the registry.
+    If MODEL_TARGET is 'local', find the latest experiment on disk and return it.
     """
-    if MODEL_TARGET == "local":
-        # Get the latest model version name by the timestamp on disk
-        local_model_directory = os.path.join(LOCAL_REGISTRY_PATH, "models")
-        local_model_paths = glob.glob(f"{local_model_directory}/*")
-        if not local_model_paths:
-            raise NoLocalModelFoundError()
-        most_recent_model_path_on_disk = sorted(local_model_paths)[-1]
-        latest_model = keras.models.load_model(most_recent_model_path_on_disk)
-        print("✅ Model loaded from local disk")
-        return latest_model  # type: ignore
+    from celebtwin.ml_logic.experiment import load_experiment
 
     if MODEL_TARGET == "gcs":
         client = storage.Client()
-        blobs = list(client.get_bucket(BUCKET_NAME).list_blobs(prefix="model"))
+        bucket = client.get_bucket(BUCKET_NAME)
+        blobs = list(bucket.list_blobs(
+            prefix="models/production/"))
         if not blobs:
             raise NoGCSModelFoundError()
         latest_blob = max(blobs, key=lambda x: x.updated)
+        model_name = latest_blob.name.split("/")[-1]
+        assert model_name.endswith(".keras"), \
+            f"Expected model name to end with '.keras', got {model_name}"
+        metadata_name = model_name.replace(".keras", ".json")
+        model_path = models_dir / model_name
+        metadata_path = metadata_dir / metadata_name
+        if not (model_path).exists():
+            os.makedirs(models_dir, exist_ok=True)
+            latest_blob.download_to_filename(model_path)
+            os.makedirs(metadata_dir, exist_ok=True)
+            bucket.blob(f"metadata/{metadata_name}")\
+                .download_to_filename(metadata_path)
+            print("✅ Latest model downloaded from cloud storage")
+        return load_experiment(metadata_path, model_path)
 
-        # Download to temporary file, then rename file and load the model.
-        latest_model_path_to_save = os.path.join(
-            LOCAL_REGISTRY_PATH, latest_blob.name)
-        latest_blob.download_to_filename(latest_model_path_to_save)
-        latest_model = keras.models.load_model(latest_model_path_to_save)
-        print("✅ Latest model downloaded from cloud storage")
-        return latest_model  # type: ignore
-
-    raise ValueError(
-        f"MODEL_TARGET must be 'local' or 'gcs', got {MODEL_TARGET}")
+    # Find latest local model based on the timestamp in the filename.
+    model_names = glob("*.keras", root_dir=models_dir)
+    if not model_names:
+        raise NoLocalModelFoundError()
+    model_path = models_dir / list(sorted(model_names))[-1]
+    assert model_path.suffix == ".keras", \
+        f"Expected model path to end with '.keras', got {model_path}"
+    metadata_path = metadata_dir / f"{model_path.stem}.json"
+    return load_experiment(model_path, metadata_path)
