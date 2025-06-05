@@ -6,12 +6,14 @@ help:
 	@echo "make run_api - start web services"
 	@echo "make lint    - run code analysis and style checks"
 
+PY_VERSION=3.10.17
 .PHONY: setup
 setup:
-	pyenv install --skip-existing 3.12.9
+	pyenv install --skip-existing $(PY_VERSION)
 	pyenv virtualenvs --bare | grep -e '^celebtwin$$' \
 	|| pyenv virtualenv celebtwin
-	pyenv local celebtwin
+	pyenv local $(PY_VERSION) celebtwin
+	pip install --upgrade pip
 	pip install -r requirements.txt
 
 dataset_zip = pins-face-recognition.zip
