@@ -114,6 +114,7 @@ class SimpleDataset(Dataset):
         self._batch_size = batch_size
         self._shuffle = shuffle
         self._validation_split = validation_split
+        self.class_names = None
 
     @property
     def identifier(self) -> str:
@@ -138,7 +139,8 @@ class SimpleDataset(Dataset):
             'resize': self._resize.name.lower(),
             'batch_size': self._batch_size,
             'shuffle': self._shuffle,
-            'validation_split': self._validation_split
+            'validation_split': self._validation_split,
+            'class_names': self.class_names,
         }
 
     def _dataset_path(self) -> Path:
@@ -166,6 +168,7 @@ class SimpleDataset(Dataset):
             subset='both',
             crop_to_aspect_ratio=crop,
             pad_to_aspect_ratio=pad)
+        self.class_names = train_data.class_names
         return train_data, val_data
 
     def _build_dataset(self) -> None:
