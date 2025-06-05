@@ -1,19 +1,25 @@
+from pathlib import Path
+
 import keras  # type: ignore
 import numpy as np
 import tensorflow as tf
+from celebtwin.ml_logic import registry
 from colorama import Fore, Style
 from keras import Input, Sequential, layers, optimizers
 from keras.callbacks import EarlyStopping  # type: ignore
-from celebtwin.ml_logic.registry import save_model
 
 
 class Model:
     """Machine learning model used for training and evaluation."""
 
-    _model: keras.Model
+    _model: keras.Model | None
     """The underlying Keras model."""
 
-    _patience: int
+    _patience: int | None
+
+    def __init__(self):
+        self._model = None
+        self._patience = None
 
     @property
     def identifier(self) -> str:
@@ -36,6 +42,8 @@ class Model:
             self, train_dataset: tf.data.Dataset,
             validation_dataset: tf.data.Dataset, patience: int) -> dict:
         """Train the model on the provided datasets, return training history."""
+        if self._model is None:
+            raise ValueError("Model has not been built or loaded yet.")
         print(Fore.BLUE + "👟 Training model..." + Style.RESET_ALL)
         self._patience = patience
         early_stopping = EarlyStopping(
@@ -56,7 +64,25 @@ class Model:
 
     def save(self, identifier: str) -> None:
         """Save the model to the registry."""
-        save_model(self._model, identifier)
+        if self._model is None:
+            raise ValueError("Model has not been built or loaded yet.")
+        registry.save_model(self._model, identifier)
+
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        """Predict the class probabilities for the input data."""
+        if self._model is None:
+            raise ValueError("Model has not been built or loaded yet.")
+        X = np.expand_dims(X, axis=0)
+        pred_probas = self._model.predict([X])
+        assert len(pred_probas) == 1
+        return pred_probas[0]
+
+
+def load_model(params: dict, keras_path: str | Path) -> Model:
+    assert params['model_class'] == 'SimpleLeNetModel'
+    model = SimpleLeNetModel()
+    model.load(params, keras_path)
+    return model
 
 
 class SimpleLeNetModel(Model):
@@ -64,6 +90,19 @@ class SimpleLeNetModel(Model):
 
     This model is a baseline architecture similar to the one used for MNIST.
     """
+
+    _learning_rate: float | None
+
+    def __init__(self):
+        super().__init__()
+        self._learning_rate = None
+
+    def load(self, params: dict, keras_path: str | Path) -> None:
+        """Load the model from a Keras file."""
+        self._model = keras.models.load_model(keras_path)
+        self._learning_rate = params['learning_rate']
+        self._patience = params['patience']
+        print("✅ Model loaded")
 
     @property
     def identifier(self) -> str:
@@ -73,9 +112,7 @@ class SimpleLeNetModel(Model):
             f"r{self._learning_rate}",
             f"p{self._patience}"])
 
-    _learning_rate: float
-
-    def __init__(self, input_shape: tuple, class_nb: int):
+    def build(self, input_shape: tuple, class_nb: int):
         super().__init__()
 
         self._model = Sequential([
@@ -107,6 +144,8 @@ class SimpleLeNetModel(Model):
         return params
 
     def compile(self, learning_rate: float) -> None:
+        if self._model is None:
+            raise ValueError("Model has not been built yet.")
         self._learning_rate = learning_rate
         optimizer = optimizers.Adam(learning_rate=learning_rate)
         self._model.compile(
