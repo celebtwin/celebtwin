@@ -1,10 +1,10 @@
 import glob
+import json
 import os
-import pickle
 from pathlib import Path
 
 import keras  # type: ignore
-from celebtwin.params import LOCAL_REGISTRY_PATH, MODEL_TARGET, BUCKET_NAME
+from celebtwin.params import BUCKET_NAME, LOCAL_REGISTRY_PATH, MODEL_TARGET
 from google.cloud import storage  # type: ignore
 
 
@@ -18,15 +18,16 @@ def save_metadata(name: str, metadata: dict) -> None:
     registry = Path(LOCAL_REGISTRY_PATH)
     metadata_dir = registry / 'metadata'
     os.makedirs(metadata_dir, exist_ok=True)
-    metadata_path = metadata_dir / (name + ".pickle")
-    with open(metadata_path, "wb") as file:
-        pickle.dump(metadata, file)
+    metadata_path = metadata_dir / (name + ".json")
+    with open(metadata_path, "wt", encoding="utf-8") as file:
+        json.dump(metadata, file, indent=4)
+        print("✅ Metadata saved locally")
     print("✅ Results saved locally")
 
     if MODEL_TARGET == "gcs":
         client = storage.Client()
         bucket = client.bucket(BUCKET_NAME)
-        blob = bucket.blob(f"metadata/{name}.pickle")
+        blob = bucket.blob(f"metadata/{name}.json")
         blob.upload_from_filename(metadata_path)
         print("✅ Results saved to GCS")
 
