@@ -5,6 +5,8 @@ help:
 	@echo "make train   - train a model"
 	@echo "make run_api - start web services"
 	@echo "make lint    - run code analysis and style checks"
+	@echo "make requirements - install requirements"
+	@echo "make pip-compile  - compile requirements files"
 
 PY_VERSION=3.10.17
 .PHONY: setup
@@ -13,8 +15,7 @@ setup:
 	pyenv virtualenvs --bare | grep -e '^celebtwin$$' \
 	|| pyenv virtualenv celebtwin
 	pyenv local $(PY_VERSION) celebtwin
-	pip install --upgrade pip
-	pip install -r requirements.txt
+	$(MAKE) requirements
 
 dataset_zip = pins-face-recognition.zip
 
@@ -23,7 +24,7 @@ dataset:
 	curl --location --continue-at - \
 	--output "raw_data/${dataset_zip}" \
 	https://www.kaggle.com/api/v1/datasets/download/hereisburak/pins-face-recognition
-	cd raw_data && unzip "${dataset_zip}"
+	cd raw_data && unzip -q "${dataset_zip}"
 
 
 ML_DIR=./raw_data/preprocessed
@@ -56,3 +57,18 @@ train:
 lint:
 	-ruff check celebtwin
 	-mypy celebtwin
+
+.PHONY: requirements
+requirements:
+	pip install --upgrade pip
+	pip install -r requirements.txt
+	pip install -r requirements-dev.txt
+
+.PHONY: pip-compile
+pip-compile: requirements.txt requirements-dev.txt
+
+requirements.txt: requirements.in
+	pip-compile requirements.in
+
+requirements-dev.txt: requirements-dev.in requirements.txt
+	pip-compile --constraint=requirements.txt requirements-dev.in

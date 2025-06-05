@@ -1,0 +1,12 @@
+# Development dependencies
+ipdb
+ipykernel
+matplotlib
+mypy
+pandas
+pip-tools
+ruff
+scikit-learn
+seaborn
+types-colorama
+types-tensorflow
