@@ -1,12 +1,10 @@
-from typing import Annotated
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 # from tempfile import SpooledTemporaryFile
 from pathlib import Path
 
 from celebtwin.params import LOCAL_DOWNLOAD_IMAGES_PATH
-from celebtwin.ml_logic.registry import load_model
 from celebtwin.ml_logic.data import load_image
 
 app = FastAPI()
@@ -32,11 +30,12 @@ def setmodel(model_version: str):
 @app.post("/predict/")
 async def create_upload_file(file: UploadFile, model: str | None = None):
     Path(LOCAL_DOWNLOAD_IMAGES_PATH).mkdir(parents=True, exist_ok=True)
+    assert file.filename is not None
     filepath_to_save = Path(LOCAL_DOWNLOAD_IMAGES_PATH) / file.filename
     contents = file.file.read()
     with open(filepath_to_save, "wb") as file_to_write:
         file_to_write.write(contents)
-    img = load_image(path=filepath_to_save, image_size=64, num_channels=1, resize="pad")
+    img = load_image(path=filepath_to_save, image_size=64, num_channels=1)
 
     # TODO : call predict + process response
     return {"result": "result", "model": model, "filename": file.filename}

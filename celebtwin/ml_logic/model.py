@@ -1,9 +1,9 @@
-import keras
+import keras  # type: ignore
 import numpy as np
 import tensorflow as tf
 from colorama import Fore, Style
 from keras import Input, Sequential, layers, optimizers
-from keras.callbacks import EarlyStopping
+from keras.callbacks import EarlyStopping  # type: ignore
 from celebtwin.ml_logic.registry import save_model
 
 

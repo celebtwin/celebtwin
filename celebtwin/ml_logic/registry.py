@@ -1,13 +1,11 @@
 import glob
 import os
 import pickle
-import time
 from pathlib import Path
 
-import keras
+import keras  # type: ignore
 from celebtwin.params import LOCAL_REGISTRY_PATH, MODEL_TARGET, BUCKET_NAME
-from colorama import Fore, Style
-from google.cloud import storage
+from google.cloud import storage  # type: ignore
 
 
 def save_metadata(name: str, metadata: dict) -> None:
@@ -54,53 +52,52 @@ def save_model(model: keras.Model, identifier: str):
         print("✅ Model saved to GCS")
 
 
+class NoModelFoundError(Exception):
+    """Exception raised when no model is found in the registry."""
+    pass
+
+class NoLocalModelFoundError(NoModelFoundError):
+    def __str__(self):
+        return "❌ No model found in local registry."
+
+class NoGCSModelFoundError(NoModelFoundError):
+    def __str__(self):
+        return f"❌ No model found in GCS bucket {BUCKET_NAME}."
+
+
 def load_model() -> keras.Model:
     """Return a saved model.
 
     - locally (latest one in alphabetical order)
     - or from GCS (most recent one) if MODEL_TARGET=='gcs'
 
-    Return None (but do not Raise) if no model is found
+    Raises NoModelFoundError if no model is found in the registry.
     """
-
     if MODEL_TARGET == "local":
-        print(Fore.BLUE + f"Load latest model from local registry..." + Style.RESET_ALL)
-
         # Get the latest model version name by the timestamp on disk
         local_model_directory = os.path.join(LOCAL_REGISTRY_PATH, "models")
         local_model_paths = glob.glob(f"{local_model_directory}/*")
-
         if not local_model_paths:
-            return None
-
+            raise NoLocalModelFoundError()
         most_recent_model_path_on_disk = sorted(local_model_paths)[-1]
-
-        print(Fore.BLUE + f"Load latest model from disk..." + Style.RESET_ALL)
-
         latest_model = keras.models.load_model(most_recent_model_path_on_disk)
-
         print("✅ Model loaded from local disk")
+        return latest_model  # type: ignore
 
-        return latest_model
-
-    elif MODEL_TARGET == "gcs":
-        print(Fore.BLUE + f"Load latest model from GCS..." + Style.RESET_ALL)
-
+    if MODEL_TARGET == "gcs":
         client = storage.Client()
         blobs = list(client.get_bucket(BUCKET_NAME).list_blobs(prefix="model"))
+        if not blobs:
+            raise NoGCSModelFoundError()
+        latest_blob = max(blobs, key=lambda x: x.updated)
 
-        try:
-            latest_blob = max(blobs, key=lambda x: x.updated)
-            latest_model_path_to_save = os.path.join(
-                LOCAL_REGISTRY_PATH, latest_blob.name)
-            latest_blob.download_to_filename(latest_model_path_to_save)
+        # Download to temporary file, then rename file and load the model.
+        latest_model_path_to_save = os.path.join(
+            LOCAL_REGISTRY_PATH, latest_blob.name)
+        latest_blob.download_to_filename(latest_model_path_to_save)
+        latest_model = keras.models.load_model(latest_model_path_to_save)
+        print("✅ Latest model downloaded from cloud storage")
+        return latest_model  # type: ignore
 
-            latest_model = keras.models.load_model(latest_model_path_to_save)
-
-            print("✅ Latest model downloaded from cloud storage")
-
-            return latest_model
-        except:
-            print(f"❌ No model found in GCS bucket {BUCKET_NAME}")
-
-            return None
+    raise ValueError(
+        f"MODEL_TARGET must be 'local' or 'gcs', got {MODEL_TARGET}")

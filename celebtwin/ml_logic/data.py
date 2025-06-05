@@ -4,11 +4,11 @@ from enum import StrEnum, auto
 from pathlib import Path
 from zipfile import ZIP_STORED, ZipFile
 
-import keras.src.utils.image_dataset_utils
+import keras.src.utils.image_dataset_utils  # type: ignore
 import numpy as np
 import tensorflow as tf
-from keras.config import image_data_format
-from keras.preprocessing import image_dataset_from_directory
+from keras.config import image_data_format  # type: ignore
+from keras.preprocessing import image_dataset_from_directory  # type: ignore
 
 RAW_DATA = Path('raw_data')
 FULL_DATASET = RAW_DATA / '105_classes_pins_dataset'

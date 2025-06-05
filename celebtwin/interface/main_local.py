@@ -57,7 +57,7 @@ def pred(X_pred: pd.DataFrame = None) -> np.ndarray:
     X_processed = preprocess_features(X_pred)
     y_pred = model.predict(X_processed)
 
-    print(f"✅ pred() done")
+    print("✅ pred() done")
 
     return y_pred
 
@@ -65,11 +65,10 @@ def pred(X_pred: pd.DataFrame = None) -> np.ndarray:
 if __name__ == '__main__':
     try:
         cli()
-    except:
+    except Exception:
         import sys
         import traceback
-
-        import ipdb
+        import ipdb  # type: ignore
         extype, value, tb = sys.exc_info()
         traceback.print_exc()
         ipdb.post_mortem(tb)
