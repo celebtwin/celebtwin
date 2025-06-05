@@ -8,6 +8,8 @@ numpy
 tensorflow
 tensorflow-metal; sys_platform == 'darwin' and 'ARM' in platform_version # GPU acceleration for Mac M-chips
 uvicorn
+deepface
+tf_keras
 
 # Development
 ipdb
