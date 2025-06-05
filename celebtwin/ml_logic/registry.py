@@ -101,12 +101,14 @@ def load_latest_experiment() -> 'experiment.Experiment':
             print("✅ Latest model downloaded from cloud storage")
         return load_experiment(metadata_path, model_path)
 
-    # Find latest local model based on the timestamp in the filename.
-    model_names = glob("*.keras", root_dir=models_dir)
-    if not model_names:
-        raise NoLocalModelFoundError()
-    model_path = models_dir / list(sorted(model_names))[-1]
-    assert model_path.suffix == ".keras", \
-        f"Expected model path to end with '.keras', got {model_path}"
-    metadata_path = metadata_dir / f"{model_path.stem}.json"
-    return load_experiment(model_path, metadata_path)
+    if MODEL_TARGET == "local":
+        # Find latest local model based on the timestamp in the filename.
+        model_names = glob("*.keras", root_dir=models_dir)
+        if not model_names:
+            raise NoLocalModelFoundError()
+        model_path = models_dir / list(sorted(model_names))[-1]
+        metadata_path = metadata_dir / f"{model_path.stem}.json"
+        return load_experiment(model_path, metadata_path)
+
+    assert False, \
+        f"Unknown MODEL_TARGET: {MODEL_TARGET}. Expected 'gcs' or 'local'."
