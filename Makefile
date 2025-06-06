@@ -72,3 +72,7 @@ requirements.txt: requirements.in
 
 requirements-dev.txt: requirements-dev.in requirements.txt
 	pip-compile --constraint=requirements.txt requirements-dev.in
+
+.PHONY: image
+image:
+	docker build -t celebtwin	 .
