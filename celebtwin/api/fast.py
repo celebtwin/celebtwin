@@ -6,6 +6,7 @@ from pathlib import Path
 
 from celebtwin.params import LOCAL_DOWNLOAD_IMAGES_PATH
 from celebtwin.ml_logic.registry import load_latest_experiment
+from celebtwin.ml_logic.preproc_face import NoFaceDetectedError
 
 app = FastAPI()
 # app.state.model = load_model()
@@ -39,6 +40,11 @@ async def create_upload_file(file: UploadFile, model: str | None = None):
     experiment = load_latest_experiment()
     pred, class_name = experiment.predict(filepath_to_save)
 
+    try:
+        pred, class_name = experiment.predict(filepath_to_save)
+    except NoFaceDetectedError:
+        return {"error": "NoFaceDetectedError",
+                "message": "No face detected in the image"}
     return {
         "result": class_name,
         "model": model,

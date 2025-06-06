@@ -7,6 +7,8 @@ from zipfile import ZIP_STORED, ZipFile
 import keras.src.utils.image_dataset_utils  # type: ignore
 import numpy as np
 import tensorflow as tf
+from celebtwin.ml_logic.preproc_face import NoFaceDetectedError, preprocess_face_aligned
+from colorama import Fore, Style
 from keras.config import image_data_format  # type: ignore
 from keras.preprocessing import image_dataset_from_directory  # type: ignore
 from tqdm import tqdm
@@ -212,7 +214,11 @@ class SimpleDataset(Dataset):
             input_paths = list(_iter_image_path(
                 FULL_DATASET, self._num_classes, self._undersample))
             for input_path in tqdm(input_paths):
-                image_tensor = self._load_image(input_path)
+                try:
+                    image_tensor = self._load_image(input_path)
+                except NoFaceDetectedError as error:
+                    print(Fore.RED + str(error) + Style.RESET_ALL)
+                    continue
                 class_name = input_path.parent.name
                 class_name = class_name.removeprefix('pins_').replace(' ', '')
                 number = _image_number(input_path)
@@ -230,8 +236,6 @@ class AlignedDataset(SimpleDataset):
 
     def _load_image(self, path: Path) -> np.ndarray:
         """Load an image and align it."""
-        from celebtwin.ml_logic.preproc_face import preprocess_face_aligned
-
         num_channels = self._color_mode.num_channels()
         return preprocess_face_aligned(path, self._image_size, num_channels)
 

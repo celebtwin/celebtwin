@@ -9,6 +9,12 @@ from mtcnn.mtcnn import MTCNN  # type: ignore
 
 mtcnn_detector = MTCNN()
 
+class NoFaceDetectedError(Exception):
+    """Raised when face detection failed during image preprocessing."""
+
+    def __init__(self, path: Path):
+        super().__init__(f'❌ No face detected: {path}')
+
 
 def preprocess_face_aligned(
         path: Path, image_size: int,
@@ -20,8 +26,6 @@ def preprocess_face_aligned(
 
     num_channels is 1 for grayscale, 3 for color images.
     """
-    from celebtwin.ml_logic.data import load_image
-
     # MTCNN requires a RGB image. Apply grayscale conversion later.
     image = tf.image.decode_image(
         tf.io.read_file(str(path)),
@@ -29,7 +33,7 @@ def preprocess_face_aligned(
 
     detected_faces = mtcnn_detector.detect_faces(image)
     if not detected_faces:
-        return load_image(path, image_size, num_channels)
+        raise NoFaceDetectedError(path)
 
     # If multiple faces were detected, just pick the first one.
     face = detected_faces[0]
@@ -53,7 +57,7 @@ def preprocess_face_aligned(
     # Detect face again after rotation to get the best cropping box.
     detected_faces = mtcnn_detector.detect_faces(aligned_image)
     if not detected_faces:
-        raise ValueError("Face detection failed after alignment.")
+        raise NoFaceDetectedError(path)
     face = detected_faces[0]
 
     # Crop the face from the aligned image.

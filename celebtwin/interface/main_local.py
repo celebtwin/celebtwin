@@ -61,14 +61,20 @@ def train(dataset) -> None:
 def pred(image_path) -> None:
     """Predict the class of a single image."""
     print(Fore.MAGENTA + "⭐️ Predicting" + Style.RESET_ALL)
-    from celebtwin.ml_logic.registry import NoModelFoundError, load_latest_experiment
+    from celebtwin.ml_logic.registry import (
+        NoModelFoundError, load_latest_experiment)
+    from celebtwin.ml_logic.preproc_face import NoFaceDetectedError
     try:
         experiment = load_latest_experiment()
     except NoModelFoundError as error:
         print(Fore.RED + str(error) + Style.RESET_ALL)
         print(Fore.YELLOW + "Please train a model first." + Style.RESET_ALL)
         sys.exit(1)
-    pred_probas, class_name = experiment.predict(image_path)
+    try:
+        pred_probas, class_name = experiment.predict(image_path)
+    except NoFaceDetectedError as error:
+        print(Fore.RED + str(error) + Style.RESET_ALL)
+        sys.exit(1)
     print(Fore.GREEN + f"Predicted class: {class_name}" + Style.RESET_ALL)
     print(Fore.BLUE + f"Predicted probabilities: {pred_probas}"
           + Style.RESET_ALL)
