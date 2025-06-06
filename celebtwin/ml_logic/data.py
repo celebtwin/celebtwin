@@ -219,9 +219,7 @@ class SimpleDataset(Dataset):
                 image_writer.write_image(class_name, image_name, image_tensor)
 
     def load_prediction(self, path: Path) -> np.ndarray:
-        return load_image(
-            path, self._image_size, self._color_mode.num_channels(),
-            self._resize)
+        return self._load_image(path)
 
 
 class AlignedDataset(SimpleDataset):
@@ -236,7 +234,6 @@ class AlignedDataset(SimpleDataset):
         num_channels = self._color_mode.num_channels()
         img_preprocessed = preprocess_face_aligned(path, required_size=(self._image_size, self._image_size), num_channels=num_channels)
         return img_preprocessed
-
 
 
 def load_image(path: Path | str, image_size: int, num_channels: int,
