@@ -10,15 +10,19 @@ def cli():
 
 
 @cli.command()
-def train() -> None:
+@click.option(
+    '--dataset', type=click.Choice(['aligned', 'simple']), default='simple',
+    help='Dataset preprocessing, defaults to simple.')
+def train(dataset) -> None:
     """Train on a local dataset.
 
     Save validation metrics and the trained model.
     """
-    print(Fore.MAGENTA + "⭐️ Training" + Style.RESET_ALL)
-    from celebtwin.ml_logic.data import ColorMode, ResizeMode, SimpleDataset, AlignedDataset
+    print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
+    from celebtwin.ml_logic.data import AlignedDataset, ColorMode, ResizeMode, SimpleDataset
     from celebtwin.ml_logic.experiment import Experiment
     from celebtwin.ml_logic.model import SimpleLeNetModel, WeekendModel
+    print(Fore.MAGENTA + "⭐️ Training" + Style.RESET_ALL)
 
     image_size = 64
     num_classes = 5
@@ -28,7 +32,9 @@ def train() -> None:
     learning_rate = 0.00001
     patience = 10
 
-    dataset = AlignedDataset(
+    dataset_class = {
+        'simple': SimpleDataset, 'aligned': AlignedDataset}[dataset]
+    dataset_instance = dataset_class(
         image_size=image_size,
         num_classes=num_classes,
         undersample=False,
@@ -41,7 +47,7 @@ def train() -> None:
         input_shape=(image_size, image_size, color_mode.num_channels()),
         class_nb=num_classes)
     experiment = Experiment(
-        dataset=dataset,
+        dataset=dataset_instance,
         model=model,
         learning_rate=learning_rate,
         patience=patience)
