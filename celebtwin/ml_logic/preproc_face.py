@@ -1,48 +1,43 @@
 import cv2
 import numpy as np
 from math import atan2, degrees
+from pathlib import Path
 from mtcnn.mtcnn import MTCNN
 
 # Initialisation globale du détecteur MTCNN
 detector = MTCNN()
 
-def preprocess_face_aligned(image_input,required_size=(160, 160), show_info=False):
+def preprocess_face_aligned(image_input : Path, required_size=(160, 160), num_channels=3):
     """
     Détecte un visage dans l'image, aligne les yeux, recadre le visage et le redimensionne.
 
     Args:
-        image_input (str or np.ndarray): Chemin vers l'image OU 1 tableau numpy RGB.
-        show_info (bool): Afficher les informations de détection (boîte et keypoints).
+        image_input (Path): Chemin vers le fichier image
+        required_size : tuple (x,y), taille de l'image en sortie
+        num_channels : int (1= grayscale, 3=couleur RGB)
 
     Returns:
         np.ndarray: Image du visage aligné, prête pour un modèles de reconnaissance faciale.
 
     Exceptions:
-        ValueError: Si aucun visage n'est détecté, ou après rotation.
-        TypeError: Si l'entrée n'est ni un chemin, ni une image valide.
+        aucune
 
     """
     # Gestion des différents types d'entrée
-    if isinstance(image_input, str):
-        img = cv2.cvtColor(cv2.imread(image_input), cv2.COLOR_BGR2RGB)
-    elif isinstance(image_input, np.ndarray):
-        img = image_input
-    else:
-        raise TypeError("L’entrée doit être un chemin (str) ou une image RGB (np.ndarray).")
-
+    img = cv2.cvtColor(cv2.imread(image_input), cv2.COLOR_BGR2RGB)
     result = detector.detect_faces(img)
-
     if not result:
         #raise ValueError("Aucun visage détecté.")
-        return img
+        face_resized = cv2.resize(img, required_size)
+        if num_channels==1:
+            face_resized = cv2.cvtColor(face_resized, cv2.COLOR_BGR2GRAY)
+            face_resized = np.expand_dims(face_resized, -1)
+        return face_resized
+
     face = result[0]
     keypoints = face['keypoints']
     left_eye = keypoints['left_eye']
     right_eye = keypoints['right_eye']
-
-    if show_info:
-        print("Boîte :", face['box'])
-        print("Yeux :", left_eye, right_eye)
 
     # Calcul de l'angle entre les yeux
     dx = right_eye[0] - left_eye[0]
@@ -73,5 +68,8 @@ def preprocess_face_aligned(image_input,required_size=(160, 160), show_info=Fals
 
     if required_size:
         face_crop = cv2.resize(face_crop, required_size)
+        if num_channels==1:
+            face_crop = cv2.cvtColor(face_crop, cv2.COLOR_BGR2GRAY)
+            face_crop = np.expand_dims(face_crop, -1)
 
     return face_crop

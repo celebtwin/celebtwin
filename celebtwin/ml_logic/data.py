@@ -227,10 +227,12 @@ class AlignedDataset(SimpleDataset):
 
     def _load_image(self, path: Path) -> np.ndarray:
         """Load an image and align it."""
-        from celebtwin.ml_logic.align import align_image
+        from celebtwin.ml_logic.preproc_face import preprocess_face_aligned
+
         num_channels = self._color_mode.num_channels()
-        # TODO: Load raw image and align
-        # TODO: After align, resize (crop or pad) to the target size.
+        img_preprocessed = preprocess_face_aligned(path, required_size=(self._image_size, self._image_size), num_channels=num_channels)
+        return img_preprocessed
+
 
 
 def load_image(path: Path | str, image_size: int, num_channels: int,
