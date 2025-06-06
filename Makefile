@@ -92,8 +92,11 @@ image-create-repo:
 		--location=$(REGION) \
 		--repository-format=docker
 
+.PHONY: image-auth
+image-auth:
+	gcloud auth configure-docker $(REGION)-docker.pkg.dev
+
 .PHONY: image-push
 image-push:
-	gcloud auth configure-docker $(REGION)-docker.pkg.dev -q > /dev/null
 	docker tag $(IMAGE) $(REGION)-docker.pkg.dev/$(PROJECT)/$(REPO)/$(IMAGE)
 	docker push $(REGION)-docker.pkg.dev/$(PROJECT)/$(REPO)/$(IMAGE)
