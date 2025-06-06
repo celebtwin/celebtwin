@@ -1,6 +1,6 @@
 import shutil
 from collections.abc import Callable, Iterator
-from enum import Enum, auto
+from enum import Enum
 from pathlib import Path
 from zipfile import ZIP_STORED, ZipFile
 
@@ -9,6 +9,7 @@ import numpy as np
 import tensorflow as tf
 from keras.config import image_data_format  # type: ignore
 from keras.preprocessing import image_dataset_from_directory  # type: ignore
+from tqdm import tqdm
 
 RAW_DATA = Path('raw_data')
 FULL_DATASET = RAW_DATA / '105_classes_pins_dataset'
@@ -207,14 +208,14 @@ class SimpleDataset(Dataset):
 
         The directory is created at `self._dataset_path()`.
         """
-
         with _ImageWriter(RAW_DATA, self.identifier) as image_writer:
-            for input_image_path, image_tensor in _iter_read_images(
-                    FULL_DATASET, self._load_image, self._num_classes,
-                    self._undersample):
-                class_name = input_image_path.parent.name
+            input_paths = list(_iter_image_path(
+                FULL_DATASET, self._num_classes, self._undersample))
+            for input_path in tqdm(input_paths):
+                image_tensor = self._load_image(input_path)
+                class_name = input_path.parent.name
                 class_name = class_name.removeprefix('pins_').replace(' ', '')
-                number = _image_number(input_image_path)
+                number = _image_number(input_path)
                 image_name = f"{class_name}_{number:03}.jpg"
                 image_writer.write_image(class_name, image_name, image_tensor)
 
@@ -232,7 +233,8 @@ class AlignedDataset(SimpleDataset):
         from celebtwin.ml_logic.preproc_face import preprocess_face_aligned
 
         num_channels = self._color_mode.num_channels()
-        img_preprocessed = preprocess_face_aligned(path, required_size=(self._image_size, self._image_size), num_channels=num_channels)
+        img_preprocessed = preprocess_face_aligned(path, required_size=(
+            self._image_size, self._image_size), num_channels=num_channels)
         return img_preprocessed
 
 
@@ -251,9 +253,8 @@ def _image_number(path: Path) -> int:
     return int(path.stem.split('_')[1])
 
 
-def _iter_read_images(
-        base_dir: Path, inner_load_image: Callable[[Path], np.ndarray], num_classes: int, undersample: bool) \
-        -> Iterator[tuple[Path, np.ndarray]]:
+def _iter_image_path(base_dir: Path, num_classes: int, undersample: bool) \
+        -> Iterator[Path]:
     input_class_dirs = list(sorted(
         x for x in base_dir.iterdir()
         if x.is_dir() and not x.name.startswith('.')))
@@ -272,9 +273,7 @@ def _iter_read_images(
         if sample_size is not None:
             image_paths = image_paths[:sample_size]
         for image_path in image_paths:
-            image_tensor = inner_load_image(image_path)
-            yield image_path, image_tensor
-
+            yield image_path
 
 class _ImageWriter:
 
