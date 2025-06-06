@@ -16,7 +16,7 @@ def train() -> None:
     Save validation metrics and the trained model.
     """
     print(Fore.MAGENTA + "⭐️ Training" + Style.RESET_ALL)
-    from celebtwin.ml_logic.data import ColorMode, ResizeMode, SimpleDataset
+    from celebtwin.ml_logic.data import ColorMode, ResizeMode, SimpleDataset, AlignedDataset
     from celebtwin.ml_logic.experiment import Experiment
     from celebtwin.ml_logic.model import SimpleLeNetModel
 
@@ -28,7 +28,7 @@ def train() -> None:
     learning_rate = 0.001
     patience = 5
 
-    dataset = SimpleDataset(
+    dataset = AlignedDataset(
         image_size=image_size,
         num_classes=num_classes,
         undersample=False,

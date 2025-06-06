@@ -4,7 +4,9 @@ colorama
 deepface
 fastapi
 google-cloud-storage
+mtcnn
 numpy
+opencv-python
 python-multipart
 tensorflow
 tensorflow-metal; sys_platform == 'darwin' and 'ARM' in platform_version # GPU acceleration for Mac M-chips

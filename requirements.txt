@@ -125,7 +125,9 @@ ml-dtypes==0.5.1
     #   keras
     #   tensorflow
 mtcnn==1.0.0
-    # via deepface
+    # via
+    #   -r requirements.in
+    #   deepface
 namex==0.1.0
     # via keras
 numpy==2.1.3
@@ -142,6 +144,7 @@ numpy==2.1.3
     #   tensorflow
 opencv-python==4.11.0.86
     # via
+    #   -r requirements.in
     #   deepface
     #   retina-face
 opt-einsum==3.4.0
