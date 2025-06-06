@@ -99,6 +99,7 @@ def load_dataset(params: dict) -> Dataset:
     dataset.class_names = params['class_names']
     return dataset
 
+
 class SimpleDataset(Dataset):
     """A simple dataset that reads images from a directory.
 
@@ -134,11 +135,14 @@ class SimpleDataset(Dataset):
         self._validation_split = validation_split
         self.class_names = None
 
+    _identifier_version = 'v1'
+
     @property
     def identifier(self) -> str:
         """Unique identifier for the dataset."""
         parts = [
-            'v1', str(self._image_size), self._color_mode.id_part(),
+            self._identifier_version, str(
+                self._image_size), self._color_mode.id_part(),
             f'c{self._num_classes}' if self._num_classes != TOTAL_CLASSES
             else None,
             'und' if self._undersample else None,
@@ -189,20 +193,20 @@ class SimpleDataset(Dataset):
         self.class_names = train_data.class_names
         return train_data, val_data
 
+    def _load_image(self, path: Path) -> np.ndarray:
+        num_channels = self._color_mode.num_channels()
+        return load_image(
+            path, self._image_size, num_channels, self._resize)
+
     def _build_dataset(self) -> None:
         """Build a dataset directory and zip file.
 
         The directory is created at `self._dataset_path()`.
         """
-        num_channels = self._color_mode.num_channels()
-
-        def inner_load_image(path: Path) -> np.ndarray:
-            return load_image(
-                path, self._image_size, num_channels, self._resize)
 
         with _ImageWriter(RAW_DATA, self.identifier) as image_writer:
             for input_image_path, image_tensor in _iter_read_images(
-                    FULL_DATASET, inner_load_image, self._num_classes,
+                    FULL_DATASET, self._load_image, self._num_classes,
                     self._undersample):
                 class_name = input_image_path.parent.name
                 class_name = class_name.removeprefix('pins_').replace(' ', '')
@@ -214,6 +218,19 @@ class SimpleDataset(Dataset):
         return load_image(
             path, self._image_size, self._color_mode.num_channels(),
             self._resize)
+
+
+class AlignedDataset(SimpleDataset):
+    """A dataset that aligns faces in images."""
+
+    _identifier_version = 'v1-align'
+
+    def _load_image(self, path: Path) -> np.ndarray:
+        """Load an image and align it."""
+        from celebtwin.ml_logic.align import align_image
+        num_channels = self._color_mode.num_channels()
+        # TODO: Load raw image and align
+        # TODO: After align, resize (crop or pad) to the target size.
 
 
 def load_image(path: Path | str, image_size: int, num_channels: int,
