@@ -85,18 +85,32 @@ class ResizeMode(str, Enum):
 
 
 def load_dataset(params: dict) -> Dataset:
-    assert params['dataset_class'] == SimpleDataset.__name__, \
+    assert params['dataset_class'] == SimpleDataset.__name__ \
+        or params['dataset_class'] == AlignedDataset.__name__, \
         f"Unexpected dataset class: {params['dataset_class']}"
-    dataset = SimpleDataset(
-        params['image_size'],
-        params['num_classes'],
-        params['undersample'],
-        ColorMode[params['color_mode'].upper()],
-        ResizeMode[params['resize'].upper()],
-        params['batch_size'],
-        params['shuffle'],
-        params['validation_split'])
+
+    if params['dataset_class'] == SimpleDataset.__name__:
+        dataset = SimpleDataset(
+            params['image_size'],
+            params['num_classes'],
+            params['undersample'],
+            ColorMode[params['color_mode'].upper()],
+            ResizeMode[params['resize'].upper()],
+            params['batch_size'],
+            params['shuffle'],
+            params['validation_split'])
+    elif params['dataset_class'] == AlignedDataset.__name__:
+        dataset = AlignedDataset(
+            params['image_size'],
+            params['num_classes'],
+            params['undersample'],
+            ColorMode[params['color_mode'].upper()],
+            ResizeMode[params['resize'].upper()],
+            params['batch_size'],
+            params['shuffle'],
+            params['validation_split'])
     dataset.class_names = params['class_names']
+
     return dataset
 
 
