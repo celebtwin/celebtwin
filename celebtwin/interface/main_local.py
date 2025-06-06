@@ -18,15 +18,15 @@ def train() -> None:
     print(Fore.MAGENTA + "⭐️ Training" + Style.RESET_ALL)
     from celebtwin.ml_logic.data import ColorMode, ResizeMode, SimpleDataset, AlignedDataset
     from celebtwin.ml_logic.experiment import Experiment
-    from celebtwin.ml_logic.model import SimpleLeNetModel
+    from celebtwin.ml_logic.model import SimpleLeNetModel, WeekendModel
 
     image_size = 64
-    num_classes = 2
-    color_mode = ColorMode.GRAYSCALE
+    num_classes = 5
+    color_mode = ColorMode.RGB
     batch_size = 256
     validation_split = 0.2
-    learning_rate = 0.001
-    patience = 5
+    learning_rate = 0.00001
+    patience = 10
 
     dataset = AlignedDataset(
         image_size=image_size,
@@ -36,7 +36,7 @@ def train() -> None:
         resize=ResizeMode.PAD,
         batch_size=batch_size,
         validation_split=validation_split)
-    model = SimpleLeNetModel()
+    model = WeekendModel()
     model.build(
         input_shape=(image_size, image_size, color_mode.num_channels()),
         class_nb=num_classes)
