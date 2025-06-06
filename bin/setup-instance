@@ -1,0 +1,44 @@
+#!/bin/bash
+
+project=${GCP_PROJECT:-"celebtwin"}
+instance=${INSTANCE:-"celebtwin-instance"}
+zone=${ZONE:-"europe-west4-b"}
+
+gcloud compute ssh --project="$project" --zone="$zone" "$instance" \
+-- -A bash <<'EOF'
+set -euo pipefail  # Strict error handling
+set -x  # Enable command tracing
+
+PYTHON=/opt/python/3.10/bin/python3.10
+
+# Silence annoying locale warnings
+sudo bash -c 'grep -q ^LC_ALL= /etc/default/locale  || echo LC_ALL=C.UTF-8 >> /etc/default/locale'
+
+# Set up the user profile
+grep -q '^source venv/bin/activate$' .profile || \
+  echo 'source venv/bin/activate' >> .profile
+
+# Display bash prompt with color in tmux
+echo 'set -g default-terminal "screen-256color"' > .tmux.conf
+
+# Download application from GitHub
+if [ ! -d celebtwin ]; then
+  GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=accept-new' \
+  git clone git@github.com:celebtwin/celebtwin.git
+fi
+
+# Build the venv and install requirements
+if [ ! -d venv ]; then
+  "$PYTHON" -m venv venv
+  source venv/bin/activate
+  pip install --upgrade pip
+  pip install -r celebtwin/requirements.txt
+fi
+
+# Download the dataset
+cd celebtwin
+if [ ! -d raw_data ]; then
+  mkdir -p raw_data
+  make dataset
+fi
+EOF
