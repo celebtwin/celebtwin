@@ -51,7 +51,7 @@ class Model:
             verbose=1)
         history = self._model.fit(
             train_dataset, validation_data=validation_dataset,
-            epochs=100, callbacks=[early_stopping])
+            epochs=100000, callbacks=[early_stopping])
         train_len = len(train_dataset.file_paths)  # type: ignore
         val_accuracy = round(np.max(history.history['val_accuracy']), 3)
         print(f"✅ Model trained on {train_len} images with validation"
@@ -132,6 +132,92 @@ class SimpleLeNetModel(Model):
 
             # One Fully Connected layer
             layers.Dense(10, activation='relu'),
+
+            # Classification Layer: n outputs corresponding to n celebrities
+            layers.Dense(class_nb, activation='softmax')])
+
+    def params(self) -> dict:
+        params = super().params()
+        params.update({
+            "learning_rate": self._learning_rate
+        })
+        return params
+
+    def compile(self, learning_rate: float) -> None:
+        if self._model is None:
+            raise ValueError("Model has not been built yet.")
+        self._learning_rate = learning_rate
+        optimizer = optimizers.Adam(learning_rate=learning_rate)
+        self._model.compile(
+            loss='categorical_crossentropy',
+            optimizer=optimizer,  # type: ignore
+            metrics=['accuracy'])
+        print("✅ Model compiled")
+
+
+class WeekendModel(Model):
+    """A more advanced model for image classification.
+
+    This model is a VGG-like architecture.
+    """
+
+    _learning_rate: float | None
+
+    def __init__(self):
+        super().__init__()
+        self._learning_rate = None
+
+    def load(self, params: dict, keras_path: str | Path) -> None:
+        """Load the model from a Keras file."""
+        self._model = keras.models.load_model(keras_path)
+        self._learning_rate = params['learning_rate']
+        self._patience = params['patience']
+        print("✅ Model loaded")
+
+    @property
+    def identifier(self) -> str:
+        """Unique identifier for the model."""
+        return '-'.join([
+            "v1weekend",
+            f"r{self._learning_rate}",
+            f"p{self._patience}"])
+
+    def build(self, input_shape: tuple, class_nb: int):
+        super().__init__()
+
+        self._model = Sequential([
+            Input(shape=input_shape),
+            layers.Rescaling(1.0 / 255),  # Normalize pixel values
+
+            ### BLOCK 1
+            layers.Conv2D(20, (2, 2), padding='same', activation="relu"),
+            layers.Conv2D(20, (3, 3), padding='same', activation="relu"),
+            layers.MaxPool2D(pool_size=(2,2), strides=(2,2)),
+
+            ### BLOCK 2
+            layers.Conv2D(38, (2, 2), padding='same', activation="relu"),
+            layers.Conv2D(38, (3, 3), padding='same', activation="relu"),
+            layers.MaxPool2D(pool_size=(2,2)),
+
+            ### BLOCK 3
+            layers.Conv2D(76, (2, 2), padding='same', activation="relu"),
+            layers.Conv2D(76, (2, 2), padding='same', activation="relu"),
+            layers.Conv2D(76, (3, 3), padding='same', activation="relu"),
+            layers.MaxPool2D(pool_size=(2,2)),
+
+            ### BLOCK 4
+            layers.Conv2D(154, (2, 2), padding='same', activation="relu"),
+            layers.Conv2D(154, (2, 2), padding='same', activation="relu"),
+            layers.Conv2D(154, (3, 3), padding='same', activation="relu"),
+            layers.MaxPool2D(pool_size=(2,2)),
+
+            ### Flattening
+            layers.Flatten(),
+
+            ### 2 Fully Connected layers - "Fully Connected" is equivalent to saying "Dense"
+            layers.Dense(1000, activation='relu'),
+            layers.Dropout(0.2),
+            layers.Dense(500, activation='relu'),
 
             # Classification Layer: n outputs corresponding to n celebrities
             layers.Dense(class_nb, activation='softmax')])
