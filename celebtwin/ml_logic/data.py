@@ -226,16 +226,14 @@ class SimpleDataset(Dataset):
 class AlignedDataset(SimpleDataset):
     """A dataset that aligns faces in images."""
 
-    _identifier_version = 'v1-align'
+    _identifier_version = 'align2'
 
     def _load_image(self, path: Path) -> np.ndarray:
         """Load an image and align it."""
         from celebtwin.ml_logic.preproc_face import preprocess_face_aligned
 
         num_channels = self._color_mode.num_channels()
-        img_preprocessed = preprocess_face_aligned(path, required_size=(
-            self._image_size, self._image_size), num_channels=num_channels)
-        return img_preprocessed
+        return preprocess_face_aligned(path, self._image_size, num_channels)
 
 
 def load_image(path: Path | str, image_size: int, num_channels: int,
@@ -274,6 +272,7 @@ def _iter_image_path(base_dir: Path, num_classes: int, undersample: bool) \
             image_paths = image_paths[:sample_size]
         for image_path in image_paths:
             yield image_path
+
 
 class _ImageWriter:
 

@@ -103,6 +103,7 @@ joblib==1.5.1
     # via mtcnn
 keras==3.10.0
     # via
+    #   -r requirements.in
     #   deepface
     #   tensorflow
 libclang==18.1.1

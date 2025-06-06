@@ -4,11 +4,13 @@ colorama
 deepface
 fastapi
 google-cloud-storage
+keras
 mtcnn
 numpy
 opencv-python
 python-multipart
 tensorflow
+tensorflow-cpu; sys_platform != 'darwin'  # Use CPU version on non-Mac systems
 tensorflow-metal; sys_platform == 'darwin' and 'ARM' in platform_version # GPU acceleration for Mac M-chips
 tf_keras
 tqdm
