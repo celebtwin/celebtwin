@@ -75,4 +75,25 @@ requirements-dev.txt: requirements-dev.in requirements.txt
 
 .PHONY: image
 image:
-	docker build -t celebtwin	 .
+	docker build -t $(IMAGE)	 .
+
+# Name of Docker image
+IMAGE=celebtwin
+
+# Google Cloud settings
+PROJECT=celebtwin
+REGION=europe-west4
+REPO=docker
+
+.PHONY: image-create-repo
+image-create-repo:
+	gcloud artifacts repositories create $(REPO) \
+		--project=$(PROJECT) \
+		--location=$(REGION) \
+		--repository-format=docker
+
+.PHONY: image-push
+image-push:
+	gcloud auth configure-docker $(REGION)-docker.pkg.dev -q > /dev/null
+	docker tag $(IMAGE) $(REGION)-docker.pkg.dev/$(PROJECT)/$(REPO)/$(IMAGE)
+	docker push $(REGION)-docker.pkg.dev/$(PROJECT)/$(REPO)/$(IMAGE)
