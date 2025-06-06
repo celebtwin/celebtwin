@@ -1,9 +1,11 @@
 #!/bin/bash
 
+project=${GCP_PROJECT:-"celebtwin"}
 instance=${INSTANCE:-"celebtwin-instance"}
 zone=${ZONE:-"europe-west4-b"}
 
-gcloud compute ssh --zone="$zone" "$instance" -- -A bash <<'EOF'
+gcloud compute ssh --project="$project" --zone="$zone" "$instance" \
+-- -A bash <<'EOF'
 set -euo pipefail  # Strict error handling
 set -x  # Enable command tracing
 
@@ -21,6 +23,7 @@ echo 'set -g default-terminal "screen-256color"' > .tmux.conf
 
 # Download application from GitHub
 if [ ! -d celebtwin ]; then
+  GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=accept-new' \
   git clone git@github.com:celebtwin/celebtwin.git
 fi
 
