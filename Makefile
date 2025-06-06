@@ -72,3 +72,44 @@ requirements.txt: requirements.in
 
 requirements-dev.txt: requirements-dev.in requirements.txt
 	pip-compile --constraint=requirements.txt requirements-dev.in
+
+# Name of Docker image
+IMAGE=celebtwin
+
+.PHONY: image
+image:
+	docker build -t $(IMAGE) .
+
+.PHONY: image-prod
+image-prod:
+	docker build --platform=linux/amd64 -t $(IMAGE) .
+
+# Google Cloud settings
+PROJECT=celebtwin
+REGION=europe-west4
+REPO=docker
+
+.PHONY: image-create-repo
+image-create-repo:
+	gcloud artifacts repositories create $(REPO) \
+		--project=$(PROJECT) \
+		--location=$(REGION) \
+		--repository-format=docker
+
+.PHONY: image-auth
+image-auth:
+	gcloud auth configure-docker $(REGION)-docker.pkg.dev
+
+.PHONY: image-push
+image-push:
+	docker tag $(IMAGE) $(REGION)-docker.pkg.dev/$(PROJECT)/$(REPO)/$(IMAGE)
+	docker push $(REGION)-docker.pkg.dev/$(PROJECT)/$(REPO)/$(IMAGE)
+
+.PHONY: image-deploy
+image-deploy:
+	gcloud run deploy celebtwin-api \
+	  --project=$(PROJECT) \
+		--region=$(REGION) \
+		--image=$(REGION)-docker.pkg.dev/$(PROJECT)/$(REPO)/$(IMAGE) \
+		--memory=1G \
+		--allow-unauthenticated
