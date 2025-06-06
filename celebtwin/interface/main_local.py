@@ -5,8 +5,8 @@ from celebtwin.ml_logic.data import ColorMode, ResizeMode, SimpleDataset
 from celebtwin.ml_logic.experiment import Experiment
 from celebtwin.ml_logic.model import SimpleLeNetModel
 from celebtwin.ml_logic.registry import load_model
+from celebtwin.ml_logic.preproc_face import preprocess_face_aligned
 from colorama import Fore, Style
-
 
 @click.group()
 def cli():
@@ -60,6 +60,18 @@ def pred(X_pred: pd.DataFrame = None) -> np.ndarray:
     print("✅ pred() done")
 
     return y_pred
+
+@cli.command()
+def test_align():
+    """Test align on a local dataset.
+
+    .
+    """
+    chem ="raw_data/105_classes_pins_dataset/pins_Alexandra Daddario/Alexandra Daddario7_409.jpg"
+    
+    result = preprocess_face_aligned(chem,required_size=None,show_info=False) #,required_size=(64,64)
+    print(f"✅ résultat : {result.shape}")
+
 
 
 if __name__ == '__main__':
