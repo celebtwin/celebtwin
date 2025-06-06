@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 
 from celebtwin.params import LOCAL_DOWNLOAD_IMAGES_PATH
-from celebtwin.ml_logic.data import load_image
+from celebtwin.ml_logic.registry import load_latest_experiment
 
 app = FastAPI()
 # app.state.model = load_model()
@@ -35,10 +35,17 @@ async def create_upload_file(file: UploadFile, model: str | None = None):
     contents = file.file.read()
     with open(filepath_to_save, "wb") as file_to_write:
         file_to_write.write(contents)
-    img = load_image(path=filepath_to_save, image_size=64, num_channels=1)
 
-    # TODO : call predict + process response
-    return {"result": "result", "model": model, "filename": file.filename}
+    experiment = load_latest_experiment()
+    pred, class_name = experiment.predict(filepath_to_save)
+
+    return {
+        "result": class_name,
+        "model": model,
+        "filename": file.filename,
+        "probas" : pred.tolist(),
+        "classes" : experiment._dataset.class_names
+    }
 
 
 @app.get("/")

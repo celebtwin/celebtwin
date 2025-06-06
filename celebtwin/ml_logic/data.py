@@ -237,6 +237,13 @@ class AlignedDataset(SimpleDataset):
         img_preprocessed = preprocess_face_aligned(path, required_size=(self._image_size, self._image_size), num_channels=num_channels)
         return img_preprocessed
 
+    def load_prediction(self, path: Path) -> np.ndarray:
+        print(f"DBG - path = {path}")
+        print(f"DBG - self._color_mode.num_channels() = {self._color_mode.num_channels()}")
+        img = self._load_image(path)
+        print(f"DBG - img.shape = {img.shape}")
+
+        return img
 
 
 def load_image(path: Path | str, image_size: int, num_channels: int,

@@ -108,7 +108,7 @@ def load_latest_experiment() -> 'experiment.Experiment':
             raise NoLocalModelFoundError()
         model_path = models_dir / list(sorted(model_names))[-1]
         metadata_path = metadata_dir / f"{model_path.stem}.json"
-        return load_experiment(model_path, metadata_path)
+        return load_experiment(metadata_path, model_path)
 
     assert False, \
         f"Unknown MODEL_TARGET: {MODEL_TARGET}. Expected 'gcs' or 'local'."
