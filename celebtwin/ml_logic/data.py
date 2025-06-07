@@ -131,7 +131,7 @@ class PinsDataset:
         """Translate path from the original naming to the naming we use.
 
         The original images are named like 'pins_Adriana Lima/Adriana
-        Lima101_3.jpg'. We rename them to 'AdrianaLima/AdrianaLima_003.jpg'.
+        Lima101_3.jpg'. We rename them to 'AdrianaLima/003.jpg'.
         """
         class_name = input_path.parent.name
         assert class_name.startswith('pins_')
@@ -139,7 +139,7 @@ class PinsDataset:
         assert input_path.name.startswith(class_name)
         assert input_path.name.endswith('.jpg')
         number = _image_number(input_path)
-        return Path(class_name) / f"{class_name}_{number:03}.jpg"
+        return Path(class_name) / f"{number:03}.jpg"
 
 
 class SimpleDataset(Dataset):
@@ -177,7 +177,7 @@ class SimpleDataset(Dataset):
         self._validation_split = validation_split
         self.class_names = None
 
-    _identifier_version = 'v1'
+    _identifier_version = 'v2'
 
     @property
     def identifier(self) -> str:
@@ -267,7 +267,7 @@ class SimpleDataset(Dataset):
 class AlignedDataset(SimpleDataset):
     """A dataset that aligns faces in images."""
 
-    _identifier_version = 'align2'
+    _identifier_version = 'align3'
 
     def _load_image(self, path: Path) -> np.ndarray:
         """Load an image and align it."""
