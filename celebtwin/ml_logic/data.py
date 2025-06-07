@@ -1,5 +1,5 @@
 import shutil
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 from enum import Enum
 from pathlib import Path
 from zipfile import ZIP_STORED, ZipFile
@@ -11,7 +11,7 @@ from celebtwin.ml_logic.preproc_face import NoFaceDetectedError, preprocess_face
 from colorama import Fore, Style
 from keras.config import image_data_format  # type: ignore
 from keras.preprocessing import image_dataset_from_directory  # type: ignore
-from tqdm import tqdm
+from tqdm import tqdm  # type: ignore
 
 RAW_DATA = Path('raw_data')
 FULL_DATASET = RAW_DATA / '105_classes_pins_dataset'
@@ -214,16 +214,19 @@ class SimpleDataset(Dataset):
             input_paths = list(_iter_image_path(
                 FULL_DATASET, self._num_classes, self._undersample))
             for input_path in tqdm(input_paths):
+                class_name = input_path.parent.name
+                class_name = class_name.removeprefix('pins_').replace(' ', '')
+                number = _image_number(input_path)
+                output_path = \
+                    Path(class_name) / f"{class_name}_{number:03}.jpg"
+                if image_writer.exists(output_path):
+                    continue
                 try:
                     image_tensor = self._load_image(input_path)
                 except NoFaceDetectedError as error:
                     print(Fore.RED + str(error) + Style.RESET_ALL)
                     continue
-                class_name = input_path.parent.name
-                class_name = class_name.removeprefix('pins_').replace(' ', '')
-                number = _image_number(input_path)
-                image_name = f"{class_name}_{number:03}.jpg"
-                image_writer.write_image(class_name, image_name, image_tensor)
+                image_writer.write_image(output_path, image_tensor)
 
     def load_prediction(self, path: Path) -> np.ndarray:
         return self._load_image(path)
@@ -308,13 +311,29 @@ class _ImageWriter:
             self._zip_path.unlink()
             shutil.rmtree(self._tmp_dir)
 
-    def write_image(
-            self, class_name: str, image_name: str, image_tensor: np.ndarray):
-        jpeg_tensor = tf.image.encode_jpeg(tf.cast(image_tensor, tf.uint8))
+    def exists(self, path: Path) -> bool:
+        return (self._tmp_dir / path).exists()
+
+    def write_image(self, path: Path, image_data: np.ndarray):
+        """Write an image tensor to a file and add it to the zip archive.
+
+        Args:
+            path: Path to the image, relative to the data directory.
+            image_data: The image data as a numpy array.
+        """
+        tmp_path = self._tmp_dir / path
+        if tmp_path.exists():
+            # Calling must check for existence to avoid repeat processing.
+            raise FileExistsError(f'File already exists: {tmp_path}')
+        jpeg_tensor = tf.image.encode_jpeg(tf.cast(image_data, tf.uint8))
         jpeg_bytes = jpeg_tensor.numpy()  # type: ignore
-        output_dir = self._tmp_dir / class_name
+
+        output_dir = self._tmp_dir / path.parent
         output_dir.mkdir(exist_ok=True)
-        with open(output_dir / image_name, 'wb') as output_file:
+        tmp_path = output_dir / (path.name + '.tmp')
+        with open(tmp_path, 'wb') as output_file:
             output_file.write(jpeg_bytes)
-        entry_name = self._data_name + '/' + class_name + '/' + image_name
+        tmp_path.rename(tmp_path.with_suffix(''))
+
+        entry_name = self._data_name + '/' + str(path)
         self._zipfile.writestr(entry_name, jpeg_bytes)
