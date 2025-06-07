@@ -3,6 +3,7 @@ from collections.abc import Iterator
 from enum import Enum
 from pathlib import Path
 from zipfile import ZIP_STORED, ZipFile
+import subprocess
 
 import keras.src.utils.image_dataset_utils  # type: ignore
 import numpy as np
@@ -14,7 +15,6 @@ from keras.preprocessing import image_dataset_from_directory  # type: ignore
 from tqdm import tqdm  # type: ignore
 
 RAW_DATA = Path('raw_data')
-FULL_DATASET = RAW_DATA / '105_classes_pins_dataset'
 TOTAL_CLASSES = 105
 
 
@@ -105,6 +105,41 @@ def load_dataset(params: dict) -> Dataset:
         params['validation_split'])
     dataset.class_names = params['class_names']
     return dataset
+
+
+class PinsDataset:
+    """The original Pins Face Recognition dataset."""
+
+    FULL_DATASET = RAW_DATA / '105_classes_pins_dataset'
+    FULL_DATA_ZIP = RAW_DATA / 'pins-face-recognition.zip'
+
+    def iter_images(self, num_classes: int, undersample: bool) \
+            -> Iterator[Path]:
+        """Download, unzip and iterate over the Pins dataset."""
+        if not self.FULL_DATASET.exists():
+            RAW_DATA.mkdir(exist_ok=True)
+            subprocess.run([
+                'curl', '--location', '--continue-at', '-',
+                '--output', str(self.FULL_DATA_ZIP),
+                'https://www.kaggle.com/api/v1/datasets/download/hereisburak/pins-face-recognition'
+            ], check=True)
+            subprocess.run(['unzip', '-q', str(self.FULL_DATA_ZIP)],
+                          cwd=RAW_DATA, check=True)
+        return _iter_image_path(self.FULL_DATASET, num_classes, undersample)
+
+    def translate_path(self, input_path: Path) -> Path:
+        """Translate path from the original naming to the naming we use.
+
+        The original images are named like 'pins_Adriana Lima/Adriana
+        Lima101_3.jpg'. We rename them to 'AdrianaLima/AdrianaLima_003.jpg'.
+        """
+        class_name = input_path.parent.name
+        assert class_name.startswith('pins_')
+        class_name = class_name.removeprefix('pins_').replace(' ', '')
+        assert input_path.name.startswith(class_name)
+        assert input_path.name.endswith('.jpg')
+        number = _image_number(input_path)
+        return Path(class_name) / f"{class_name}_{number:03}.jpg"
 
 
 class SimpleDataset(Dataset):
@@ -210,15 +245,12 @@ class SimpleDataset(Dataset):
 
         The directory is created at `self._dataset_path()`.
         """
+        pins_dataset = PinsDataset()
         with _ImageWriter(RAW_DATA, self.identifier) as image_writer:
-            input_paths = list(_iter_image_path(
-                FULL_DATASET, self._num_classes, self._undersample))
+            input_paths = list(pins_dataset.iter_images(
+                self._num_classes, self._undersample))
             for input_path in tqdm(input_paths):
-                class_name = input_path.parent.name
-                class_name = class_name.removeprefix('pins_').replace(' ', '')
-                number = _image_number(input_path)
-                output_path = \
-                    Path(class_name) / f"{class_name}_{number:03}.jpg"
+                output_path = pins_dataset.translate_path(input_path)
                 if image_writer.exists(output_path):
                     continue
                 try:

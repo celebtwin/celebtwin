@@ -34,11 +34,4 @@ if [ ! -d venv ]; then
   pip install --upgrade pip
   pip install -r celebtwin/requirements.txt
 fi
-
-# Download the dataset
-cd celebtwin
-if [ ! -d raw_data ]; then
-  mkdir -p raw_data
-  make dataset
-fi
 EOF
