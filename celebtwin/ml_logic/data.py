@@ -1,16 +1,18 @@
 import shutil
+import subprocess
 from collections.abc import Iterator
 from enum import Enum
 from pathlib import Path
 from zipfile import ZIP_STORED, ZipFile
-import subprocess
 
 import keras.src.utils.image_dataset_utils  # type: ignore
 import numpy as np
 import tensorflow as tf
-from celebtwin.ml_logic.preproc_face import NoFaceDetectedError, preprocess_face_aligned
+from celebtwin.ml_logic.preproc_face import (
+    NoFaceDetectedError, preprocess_face_aligned)
 from colorama import Fore, Style
 from keras.config import image_data_format  # type: ignore
+from keras.ops.image import rgb_to_grayscale  # type: ignore
 from keras.preprocessing import image_dataset_from_directory  # type: ignore
 from tqdm import tqdm  # type: ignore
 
@@ -124,7 +126,7 @@ class PinsDataset:
                 'https://www.kaggle.com/api/v1/datasets/download/hereisburak/pins-face-recognition'
             ], check=True)
             subprocess.run(['unzip', '-q', str(self.FULL_DATA_ZIP)],
-                          cwd=RAW_DATA, check=True)
+                           cwd=RAW_DATA, check=True)
         return _iter_image_path(self.FULL_DATASET, num_classes, undersample)
 
     def translate_path(self, input_path: Path) -> Path:
@@ -270,9 +272,16 @@ class AlignedDataset(SimpleDataset):
     _identifier_version = 'align3'
 
     def _load_image(self, path: Path) -> np.ndarray:
-        """Load an image and align it."""
-        num_channels = self._color_mode.num_channels()
-        return preprocess_face_aligned(path, self._image_size, num_channels)
+        """Load an image, align it, and resize it."""
+        if self._resize != ResizeMode.PAD:
+            raise NotImplementedError(
+                f"AlignedDataset only supports {ResizeMode.PAD} resize mode")
+        aligned_face = preprocess_face_aligned(path)
+        resized_image = tf.image.resize_with_pad(
+            aligned_face, self._image_size, self._image_size)
+        if self._color_mode == ColorMode.GRAYSCALE:
+            return rgb_to_grayscale(resized_image)
+        return resized_image
 
 
 def load_image(path: Path | str, image_size: int, num_channels: int,

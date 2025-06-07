@@ -2,12 +2,12 @@ from math import atan2, degrees
 from pathlib import Path
 
 import cv2
-import keras.ops.image  # type: ignore
 import numpy as np
 import tensorflow as tf
 from mtcnn.mtcnn import MTCNN  # type: ignore
 
 mtcnn_detector = MTCNN()
+
 
 class NoFaceDetectedError(Exception):
     """Raised when face detection failed during image preprocessing."""
@@ -16,15 +16,10 @@ class NoFaceDetectedError(Exception):
         super().__init__(f'❌ No face detected: {path}')
 
 
-def preprocess_face_aligned(
-        path: Path, image_size: int,
-        num_channels: int) -> np.ndarray:
-    """Load an image, detect a face, crop, align and resize the image.
+def preprocess_face_aligned(path: Path) -> np.ndarray:
+    """Load an image, detect a face, crop and align the image.
 
-    The image is cropped to include only the face, resizing is done without
-    preserving aspect ratio.
-
-    num_channels is 1 for grayscale, 3 for color images.
+    The image is cropped to include only the face. Resizing should be done by the caller.
     """
     # MTCNN requires a RGB image. Apply grayscale conversion later.
     image = tf.image.decode_image(
@@ -62,10 +57,6 @@ def preprocess_face_aligned(
 
     # Crop the face from the aligned image.
     x, y, w, h = face['box']
-    x, y = max(x, 0), max(y, 0)
+    # x, y = max(x, 0), max(y, 0)
     cropped_image = aligned_image[y:y+h, x:x+w]
-    resized_image = tf.image.resize_with_pad(
-        cropped_image, image_size, image_size, method='bilinear')
-    if num_channels == 1:
-        return keras.ops.image.rgb_to_grayscale(resized_image)  # type: ignore
-    return resized_image
+    return cropped_image
