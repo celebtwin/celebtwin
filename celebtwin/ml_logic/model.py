@@ -17,10 +17,19 @@ class Model:
     """The underlying Keras model."""
 
     _patience: int | None
+    _learning_rate: float | None
 
     def __init__(self):
         self._model = None
         self._patience = None
+        self._learning_rate = None
+
+    def load(self, params: dict, keras_path: str | Path) -> None:
+        """Load the model from a Keras file."""
+        self._model = keras.models.load_model(keras_path)
+        self._learning_rate = params['learning_rate']
+        self._patience = params['patience']
+        print("✅ Model loaded")
 
     @property
     def identifier(self) -> str:
@@ -32,7 +41,8 @@ class Model:
         return {
             "model_identifier": self.identifier,
             "model_class": self.__class__.__name__,
-            "patience": self._patience
+            "patience": self._patience,
+            "learning_rate": self._learning_rate,
         }
 
     def compile(self, learning_rate: float) -> None:
@@ -97,19 +107,6 @@ class SimpleLeNetModel(Model):
     This model is a baseline architecture similar to the one used for MNIST.
     """
 
-    _learning_rate: float | None
-
-    def __init__(self):
-        super().__init__()
-        self._learning_rate = None
-
-    def load(self, params: dict, keras_path: str | Path) -> None:
-        """Load the model from a Keras file."""
-        self._model = keras.models.load_model(keras_path)
-        self._learning_rate = params['learning_rate']
-        self._patience = params['patience']
-        print("✅ Model loaded")
-
     @property
     def identifier(self) -> str:
         """Unique identifier for the model."""
@@ -142,13 +139,6 @@ class SimpleLeNetModel(Model):
             # Classification Layer: n outputs corresponding to n celebrities
             layers.Dense(class_nb, activation='softmax')])
 
-    def params(self) -> dict:
-        params = super().params()
-        params.update({
-            "learning_rate": self._learning_rate
-        })
-        return params
-
     def compile(self, learning_rate: float) -> None:
         if self._model is None:
             raise ValueError("Model has not been built yet.")
@@ -166,19 +156,6 @@ class WeekendModel(Model):
 
     This model is a VGG-like architecture.
     """
-
-    _learning_rate: float | None
-
-    def __init__(self):
-        super().__init__()
-        self._learning_rate = None
-
-    def load(self, params: dict, keras_path: str | Path) -> None:
-        """Load the model from a Keras file."""
-        self._model = keras.models.load_model(keras_path)
-        self._learning_rate = params['learning_rate']
-        self._patience = params['patience']
-        print("✅ Model loaded")
 
     @property
     def identifier(self) -> str:
@@ -228,13 +205,6 @@ class WeekendModel(Model):
 
             # Classification Layer: n outputs corresponding to n celebrities
             layers.Dense(class_nb, activation='softmax')])
-
-    def params(self) -> dict:
-        params = super().params()
-        params.update({
-            "learning_rate": self._learning_rate
-        })
-        return params
 
     def compile(self, learning_rate: float) -> None:
         if self._model is None:
