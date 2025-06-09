@@ -358,6 +358,9 @@ class SimpleDataset(Dataset):
 
         The directory is created at `self._dataset_path()`.
         """
+        downloaded = try_download_dataset(self._dataset_path())
+        if downloaded:
+            return
         full_dataset = self._full_dataset()
         with _ImageWriter(RAW_DATA, self.identifier) as image_writer:
             input_paths = list(full_dataset.iter_images(
