@@ -1,12 +1,15 @@
-from glob import glob
 import json
 import os
+import subprocess
+from glob import glob
 from pathlib import Path
 
 import keras  # type: ignore
+from google.cloud import storage  # type: ignore
+from google.cloud.exceptions import NotFound
+
 from celebtwin.ml_logic import experiment
 from celebtwin.params import BUCKET_NAME, LOCAL_REGISTRY_PATH, MODEL_TARGET
-from google.cloud import storage  # type: ignore
 
 models_dir = Path(LOCAL_REGISTRY_PATH) / "models"
 metadata_dir = Path(LOCAL_REGISTRY_PATH) / "metadata"
@@ -50,6 +53,7 @@ def save_model(model: keras.Model, identifier: str):
         client = storage.Client()
         bucket = client.bucket(BUCKET_NAME)
         blob = bucket.blob(f"models/staging/{model_path.name}")
+        print("☁️ Uploading model to GCS: " + model_path.name)
         blob.upload_from_filename(model_path)
         print("✅ Model saved to GCS")
 
@@ -94,6 +98,7 @@ def load_latest_experiment() -> 'experiment.Experiment':
         metadata_path = metadata_dir / metadata_name
         if not (model_path).exists():
             os.makedirs(models_dir, exist_ok=True)
+            print("☁️ Downloading model from GCS: " + model_name)
             latest_blob.download_to_filename(model_path)
             os.makedirs(metadata_dir, exist_ok=True)
             bucket.blob(f"metadata/{metadata_name}")\
@@ -112,3 +117,49 @@ def load_latest_experiment() -> 'experiment.Experiment':
 
     assert False, \
         f"Unknown MODEL_TARGET: {MODEL_TARGET}. Expected 'gcs' or 'local'."
+
+
+def try_download_dataset(path: Path) -> bool:
+    """Try to download and unzip a dataset from GCS.
+
+    Args:
+        path: Path where the dataset should be extracted
+
+    Returns:
+        True if the dataset was downloaded and extracted, False if it doesn't exist
+    """
+    client = storage.Client()
+    bucket = client.bucket(BUCKET_NAME)
+    zip_path = path.with_suffix('.zip')
+    blob = bucket.blob('dataset/' + zip_path.name)
+    try:
+        blob.reload()
+    except NotFound:
+        return False
+    print("☁️ Downloading dataset from GCS: " + zip_path.name)
+    blob.download_to_filename(zip_path)
+    print("✅ Dataset downloaded from GCS")
+    subprocess.run(['unzip', '-q', zip_path.name],
+                   cwd=path.parent, check=True)
+    zip_path.unlink()
+    return True
+
+
+def upload_dataset(path: Path) -> None:
+    """Create a zip file for a dataset and upload it to GCS.
+
+    Args:
+        path: Path to the dataset directory to upload
+    """
+    if MODEL_TARGET == 'local':
+        return
+    zip_path = path.with_suffix('.zip')
+    subprocess.run(['zip', '-q', '-r', zip_path.name, path.name],
+                   cwd=path.parent, check=True)
+    client = storage.Client()
+    bucket = client.bucket(BUCKET_NAME)
+    blob = bucket.blob('dataset/' + zip_path.name)
+    print("☁️ Uploading dataset to GCS: " + zip_path.name)
+    blob.upload_from_filename(zip_path)
+    print("✅ Dataset uploaded to GCS")
+    zip_path.unlink()

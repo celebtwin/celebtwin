@@ -3,10 +3,11 @@ from pathlib import Path
 import keras  # type: ignore
 import numpy as np
 import tensorflow as tf
-from celebtwin.ml_logic import registry
 from colorama import Fore, Style
 from keras import Input, Sequential, layers, optimizers
 from keras.callbacks import EarlyStopping  # type: ignore
+
+from celebtwin.ml_logic import registry
 
 
 class Model:
@@ -194,32 +195,33 @@ class WeekendModel(Model):
             Input(shape=input_shape),
             layers.Rescaling(1.0 / 255),  # Normalize pixel values
 
-            ### BLOCK 1
+            # BLOCK 1
             layers.Conv2D(20, (2, 2), padding='same', activation="relu"),
             layers.Conv2D(20, (3, 3), padding='same', activation="relu"),
-            layers.MaxPool2D(pool_size=(2,2), strides=(2,2)),
+            layers.MaxPool2D(pool_size=(2, 2), strides=(2, 2)),
 
-            ### BLOCK 2
+            # BLOCK 2
             layers.Conv2D(38, (2, 2), padding='same', activation="relu"),
             layers.Conv2D(38, (3, 3), padding='same', activation="relu"),
-            layers.MaxPool2D(pool_size=(2,2)),
+            layers.MaxPool2D(pool_size=(2, 2)),
 
-            ### BLOCK 3
+            # BLOCK 3
             layers.Conv2D(76, (2, 2), padding='same', activation="relu"),
             layers.Conv2D(76, (2, 2), padding='same', activation="relu"),
             layers.Conv2D(76, (3, 3), padding='same', activation="relu"),
-            layers.MaxPool2D(pool_size=(2,2)),
+            layers.MaxPool2D(pool_size=(2, 2)),
 
-            ### BLOCK 4
+            # BLOCK 4
             layers.Conv2D(154, (2, 2), padding='same', activation="relu"),
             layers.Conv2D(154, (2, 2), padding='same', activation="relu"),
             layers.Conv2D(154, (3, 3), padding='same', activation="relu"),
-            layers.MaxPool2D(pool_size=(2,2)),
+            layers.MaxPool2D(pool_size=(2, 2)),
 
-            ### Flattening
+            # Flattening
             layers.Flatten(),
 
-            ### 2 Fully Connected layers - "Fully Connected" is equivalent to saying "Dense"
+            # 2 Fully Connected layers - "Fully Connected" is equivalent to
+            # saying "Dense"
             layers.Dense(1000, activation='relu'),
             layers.Dropout(0.2),
             layers.Dense(500, activation='relu'),

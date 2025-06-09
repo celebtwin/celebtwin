@@ -9,9 +9,8 @@ import time
 from pathlib import Path
 
 import numpy as np
-from celebtwin.ml_logic import registry
-from celebtwin.ml_logic.data import Dataset, load_dataset
-from celebtwin.ml_logic.model import Model, load_model
+
+from celebtwin.ml_logic import data, model, registry
 
 
 class Experiment:
@@ -21,8 +20,9 @@ class Experiment:
     run a complete training and evaluation cycle.
     """
 
-    def __init__(self, dataset: Dataset, model: Model, learning_rate: float,
-                 patience: int):
+    def __init__(
+            self, dataset: 'data.Dataset', model: model.Model,
+            learning_rate: float, patience: int):
         self._dataset = dataset
         self._model = model
         self._learning_rate = learning_rate
@@ -79,10 +79,10 @@ def load_experiment(metadata_path: Path, model_path: Path) -> Experiment:
     """Load an experiment from the registry."""
     with open(metadata_path, 'r', encoding='utf-8') as file:
         metadata = json.load(file)
-    dataset = load_dataset(metadata['dataset'])
-    model = load_model(metadata['model'], model_path)
+    dataset = data.load_dataset(metadata['dataset'])
+    model_instance = model.load_model(metadata['model'], model_path)
     learning_rate = metadata['model']['learning_rate']
     patience = metadata['model']['patience']
-    experiment = Experiment(dataset, model, learning_rate, patience)
+    experiment = Experiment(dataset, model_instance, learning_rate, patience)
     experiment._history = metadata['history']
     return experiment

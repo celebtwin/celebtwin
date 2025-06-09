@@ -51,7 +51,8 @@ run_api:
 
 .PHONY: train
 train:
-	python -m celebtwin train
+	python -m celebtwin train --dataset aligned --model weekend --classes 5 \
+	--learning-rate 0.0001
 
 .PHONY: lint
 lint:
