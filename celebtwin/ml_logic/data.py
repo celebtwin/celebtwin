@@ -129,7 +129,7 @@ class _PinsDataset(_FullDataset):
     FULL_DATASET = RAW_DATA / '105_classes_pins_dataset'
     FULL_DATA_ZIP = RAW_DATA / 'pins-face-recognition.zip'
 
-    def iter_images(self, num_classes: int, undersample: bool) \
+    def iter_images(self, num_classes: int | None, undersample: bool) \
             -> Iterator[Path]:
         """Download, unzip and iterate over the Pins dataset."""
         if not self.FULL_DATASET.exists():
@@ -161,7 +161,7 @@ class _PinsDataset(_FullDataset):
         return Path(class_name) / f"{number:03}.jpg"
 
 
-class _AlignedDatasetFull(_FullDataset):
+class AlignedDatasetFull(_FullDataset):
     """A dataset that aligns faces in images and saves them to disk."""
 
     _DATASET_NAME = 'alignfull1'
@@ -169,13 +169,24 @@ class _AlignedDatasetFull(_FullDataset):
     _PARTIAL_NAME = _DATASET_NAME + '-part'
     _PARTIAL_DIR = RAW_DATA / _PARTIAL_NAME
 
-    def iter_images(self, num_classes: int, undersample: bool) \
+    def preprocess_all(self) -> None:
+        """Process all images, rename directory to dataset_dir, and create zip."""
+        if self._DATASET_DIR.exists():
+            raise ValueError(
+                f'Dataset directory already exists: {self._DATASET_DIR}')
+        for _ in self.iter_images(None, False):
+            pass
+        self._PARTIAL_DIR.rename(self._DATASET_DIR)
+        with _ImageWriter(RAW_DATA, self._DATASET_NAME) as image_writer:
+            image_writer.make_zip()
+
+    def iter_images(self, num_classes: int | None, undersample: bool) \
             -> Iterator[Path]:
         """Process images from PinsDataset and yield paths to aligned faces.
 
         Args:
-            num_classes: Number of celebrity classes to process
-            undersample: If True, use the same number of images per class
+            num_classes: Number of celebrity classes to process, None for all.
+            undersample: If True, use the same number of images per class.
 
         Yields:
             Path to the aligned face image
@@ -346,7 +357,7 @@ class AlignedDataset(SimpleDataset):
 
     def _full_dataset(self) -> _FullDataset:
         """Return the full dataset to process."""
-        return _AlignedDatasetFull()
+        return AlignedDatasetFull()
 
 
 def load_image(path: Path | str, image_size: int, num_channels: int,
@@ -364,13 +375,16 @@ def _image_number(path: Path) -> int:
     return int(path.stem.split('_')[1])
 
 
-def _iter_image_path(base_dir: Path, num_classes: int, undersample: bool) \
+def _iter_image_path(
+        base_dir: Path, num_classes: int | None, undersample: bool) \
         -> Iterator[Path]:
+    """Iterate over image paths in the dataset."""
     input_class_dirs = list(sorted(
         x for x in base_dir.iterdir()
         if x.is_dir() and not x.name.startswith('.')))
-    assert 0 < num_classes <= len(input_class_dirs)
-    input_class_dirs = input_class_dirs[:num_classes]
+    if num_classes is not None:
+        assert 0 < num_classes <= len(input_class_dirs)
+        input_class_dirs = input_class_dirs[:num_classes]
     sample_size = None
     image_glob = '*.jpg'
     if undersample:
@@ -405,7 +419,7 @@ class _ImageWriter:
         """Create a zip file of the dataset directory."""
         zip_path = self._target_path('.zip.tmp')
         subprocess.run(['zip', '-r', str(zip_path), self._data_name],
-                      cwd=self._data_dir, check=True)
+                       cwd=self._data_dir, check=True)
         zip_path.rename(self._target_path('.zip'))
 
     def close(self) -> None:

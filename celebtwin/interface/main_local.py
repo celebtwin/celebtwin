@@ -57,6 +57,16 @@ def train(dataset) -> None:
 
 
 @cli.command()
+def batch_align() -> None:
+    """Perform face alignment on all images."""
+    print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
+    from celebtwin.ml_logic.data import AlignedDatasetFull
+    print(Fore.MAGENTA + "⭐️ Batch aligning" + Style.RESET_ALL)
+    AlignedDatasetFull().preprocess_all()
+    print("✅ batch_align() done")
+
+
+@cli.command()
 @click.argument('image_path', type=click.Path(exists=True))
 def pred(image_path) -> None:
     """Predict the class of a single image."""
