@@ -1,3 +1,4 @@
+import csv
 import shutil
 import subprocess
 from abc import ABC, abstractmethod
@@ -214,11 +215,10 @@ class AlignedDatasetFull(_FullDataset):
         self._DATASET_DIR.mkdir(exist_ok=True)
         pins_dataset = _PinsDataset()
         ignored_files: set[str] = set()
-        ignored_changed = False
         ignored_path = self._PARTIAL_DIR / 'ignore.csv'
         if ignored_path.exists():
-            with open(ignored_path) as f:
-                ignored_files = {line.strip() for line in f}
+            with open(ignored_path, 'r', encoding='utf-8', newline='') as file:
+                ignored_files = {row[0] for row in csv.reader(file)}
         with _ImageWriter(RAW_DATA, self._PARTIAL_NAME, exists_ok=True) \
                 as image_writer:
             for input_path in pins_dataset.iter_images(num_classes, undersample):
@@ -232,15 +232,12 @@ class AlignedDatasetFull(_FullDataset):
                     aligned_face = preprocess_face_aligned(input_path)
                 except NoFaceDetectedError as error:
                     print(Fore.RED + str(error) + Style.RESET_ALL)
-                    ignored_files.add(str(output_path))
-                    ignored_changed = True
+                    with open(ignored_path, 'a', encoding='utf-8',
+                              newline='') as file:
+                        csv.writer(file).writerow([str(output_path)])
                     continue
                 image_writer.write_image(output_path, aligned_face)
                 yield self._PARTIAL_DIR / output_path
-        if ignored_changed:
-            with open(ignored_path, 'w') as f:
-                for filename in sorted(ignored_files):
-                    f.write(filename + '\n')
 
     def translate_path(self, path: Path) -> Path:
         """Make a path relative to the target dataset."""
