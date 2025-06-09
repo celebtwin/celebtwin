@@ -21,7 +21,7 @@ from celebtwin.ml_logic.registry import try_download_dataset, upload_dataset
 RAW_DATA = Path('raw_data')
 
 
-class Dataset:
+class Dataset(ABC):
     """Data used for training and evaluation."""
 
     num_classes: int | None
@@ -31,26 +31,30 @@ class Dataset:
         self.num_classes = num_classes
         self.class_names = None
 
+    @abstractmethod
     def load(self) -> tuple[tf.data.Dataset, tf.data.Dataset]:
         """Load the dataset.
 
         Returns:
             tuple: A tuple containing the training dataset and validation dataset.
         """
-        raise NotImplementedError("Implement load in a subclass.")
+        ...
 
     @property
+    @abstractmethod
     def identifier(self) -> str:
         """Unique identifier for the dataset."""
-        raise NotImplementedError("Implement identifier in a subclass.")
+        ...
 
+    @abstractmethod
     def params(self) -> dict:
         """Return the parameters of the dataset as a dictionary."""
-        raise NotImplementedError("Implement params in a subclass.")
+        ...
 
+    @abstractmethod
     def load_prediction(self, path: Path) -> np.ndarray:
         """Load an image and apply preprocessing for prediction."""
-        raise NotImplementedError("Implement load_prediction in a subclass.")
+        ...
 
 
 class _FullDataset(ABC):
@@ -179,7 +183,7 @@ class AlignedDatasetFull(_FullDataset):
         if self.DATASET_DIR.exists():
             raise ValueError(
                 f'Dataset directory already exists: {self.DATASET_DIR}')
-        partial = AlignedDatasetPartial()
+        partial = _AlignedDatasetPartial()
         for _ in partial.iter_images(None, False):
             pass
         partial.PARTIAL_DIR.rename(self.DATASET_DIR)
@@ -196,7 +200,7 @@ class AlignedDatasetFull(_FullDataset):
         """Iterate over images in the full dataset directory."""
         if not self.DATASET_DIR.exists():
             raise ValueError(
-                'Dataset does not exist. Use AlignedDatasetPartial instead.')
+                'Dataset does not exist. Use _AlignedDatasetPartial instead.')
         for path in _iter_image_path(
                 self.DATASET_DIR, num_classes, undersample):
             yield path
@@ -206,7 +210,7 @@ class AlignedDatasetFull(_FullDataset):
         return path.relative_to(self.DATASET_DIR)
 
 
-class AlignedDatasetPartial(_FullDataset):
+class _AlignedDatasetPartial(_FullDataset):
     """A dataset that aligns faces in images.
 
     The dataset is built on the fly from the PinsDataset.
@@ -411,7 +415,7 @@ class AlignedDataset(SimpleDataset):
         downloaded = full_dataset.try_download()
         if downloaded:
             return full_dataset
-        partial_dataset = AlignedDatasetPartial()
+        partial_dataset = _AlignedDatasetPartial()
         downloaded = partial_dataset.try_download()
         assert downloaded
         return partial_dataset
@@ -459,7 +463,7 @@ def _iter_image_path(
 
 
 class _ImageWriter:
-    """Write images to a directory and a zip file."""
+    """Write images to a directory."""
 
     def __init__(
             self, data_dir: Path, data_name: str, continue_: bool = False):
