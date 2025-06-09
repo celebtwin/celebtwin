@@ -164,7 +164,8 @@ class _PinsDataset(_FullDataset):
 class _AlignedDatasetFull(_FullDataset):
     """A dataset that aligns faces in images and saves them to disk."""
 
-    _DATASET_DIR = RAW_DATA / 'alignfull1'
+    _DATASET_NAME = 'alignfull1'
+    _DATASET_DIR = RAW_DATA / _DATASET_NAME
 
     def iter_images(self, num_classes: int, undersample: bool) \
             -> Iterator[Path]:
@@ -179,23 +180,20 @@ class _AlignedDatasetFull(_FullDataset):
         """
         self._DATASET_DIR.mkdir(exist_ok=True)
         pins_dataset = _PinsDataset()
-        for input_path in pins_dataset.iter_images(num_classes, undersample):
-            output_path = pins_dataset.translate_path(input_path)
-            output_path = self._DATASET_DIR / output_path
-            if output_path.exists():
-                yield output_path
-                continue
-            output_path.parent.mkdir(exist_ok=True)
-            try:
-                aligned_face = preprocess_face_aligned(input_path)
-            except NoFaceDetectedError as error:
-                print(Fore.RED + str(error) + Style.RESET_ALL)
-                continue
-            jpeg_tensor = tf.image.encode_jpeg(tf.cast(aligned_face, tf.uint8))
-            tmp_path = output_path.with_suffix('.tmp')
-            tmp_path.write_bytes(jpeg_tensor.numpy())
-            tmp_path.rename(output_path)
-            yield output_path
+        with _ImageWriter(RAW_DATA, self._DATASET_NAME, exists_ok=True) \
+                as image_writer:
+            for input_path in pins_dataset.iter_images(num_classes, undersample):
+                output_path = pins_dataset.translate_path(input_path)
+                if image_writer.exists(output_path):
+                    yield self._DATASET_DIR / output_path
+                    continue
+                try:
+                    aligned_face = preprocess_face_aligned(input_path)
+                except NoFaceDetectedError as error:
+                    print(Fore.RED + str(error) + Style.RESET_ALL)
+                    continue
+                image_writer.write_image(output_path, aligned_face)
+                yield self._DATASET_DIR / output_path
 
     def translate_path(self, path: Path) -> Path:
         """Make a path relative to the target dataset."""
@@ -376,11 +374,12 @@ def _iter_image_path(base_dir: Path, num_classes: int, undersample: bool) \
 class _ImageWriter:
     """Write images to a directory and a zip file."""
 
-    def __init__(self, data_dir: Path, data_name: str):
+    def __init__(
+            self, data_dir: Path, data_name: str, exists_ok: bool = False):
         self._data_dir = data_dir
         self._data_name = data_name
         self._tmp_dir = self._target_path('.tmp')
-        if self._target_path().exists():
+        if not exists_ok and self._target_path().exists():
             raise ValueError(f'Path exists: {self._target_path()}')
 
     def _target_path(self, suffix: str = '') -> Path:
