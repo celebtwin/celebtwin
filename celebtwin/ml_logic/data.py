@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from enum import Enum
 from pathlib import Path
-from zipfile import ZIP_STORED, ZipFile
 
 import keras.src.utils.image_dataset_utils  # type: ignore
 import numpy as np
@@ -320,6 +319,7 @@ class SimpleDataset(Dataset):
                     continue
                 image_tensor = self._load_image(input_path)
                 image_writer.write_image(output_path, image_tensor)
+        image_writer.make_zip()
 
     def load_prediction(self, path: Path) -> np.ndarray:
         return self._load_image(path)
@@ -374,33 +374,41 @@ def _iter_image_path(base_dir: Path, num_classes: int, undersample: bool) \
 
 
 class _ImageWriter:
+    """Write images to a directory and a zip file."""
 
     def __init__(self, data_dir: Path, data_name: str):
         self._data_dir = data_dir
         self._data_name = data_name
         self._tmp_dir = self._target_path('.tmp')
-        self._zip_path = self._target_path('.zip.tmp')
-        assert (not self._target_path().exists()), \
-            f'Path exists: {self._target_path()}'
-        if self._tmp_dir.exists():
-            shutil.rmtree(self._tmp_dir)
-        self._tmp_dir.mkdir()
-        # Do not compress the zip data, jpeg files are already compressed.
-        self._zipfile = ZipFile(self._zip_path, 'w', ZIP_STORED)
+        if self._target_path().exists():
+            raise ValueError(f'Path exists: {self._target_path()}')
 
     def _target_path(self, suffix: str = '') -> Path:
         return self._data_dir / (self._data_name + suffix)
 
+    def make_zip(self) -> None:
+        """Create a zip file of the dataset directory."""
+        zip_path = self._target_path('.zip.tmp')
+        subprocess.run(['zip', '-r', str(zip_path), self._data_name],
+                      cwd=self._data_dir, check=True)
+        zip_path.rename(self._target_path('.zip'))
+
+    def close(self) -> None:
+        """Rename temporary directory to its final name."""
+        target_dir = self._target_path()
+        self._tmp_dir.rename(target_dir)
+
     def __enter__(self):
+        if self._tmp_dir.exists():
+            shutil.rmtree(self._tmp_dir)
+        self._tmp_dir.mkdir()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self._zipfile.close()
         if exc_type is None:
-            self._zip_path.rename(self._target_path('.zip'))
-            self._tmp_dir.rename(self._target_path())
+            self.close()
         else:
-            self._zip_path.unlink()
+            self._target_path('.zip.tmp').unlink(missing_ok=True)
             shutil.rmtree(self._tmp_dir)
 
     def exists(self, path: Path) -> bool:
@@ -426,6 +434,3 @@ class _ImageWriter:
         with open(tmp_path, 'wb') as output_file:
             output_file.write(jpeg_bytes)
         tmp_path.rename(tmp_path.with_suffix(''))
-
-        entry_name = self._data_name + '/' + str(path)
-        self._zipfile.writestr(entry_name, jpeg_bytes)
