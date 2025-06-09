@@ -58,5 +58,5 @@ def preprocess_face_aligned(path: Path) -> np.ndarray:
     # Crop the face from the aligned image.
     x, y, w, h = face['box']
     # x, y = max(x, 0), max(y, 0)
-    cropped_image = aligned_image[y:y+h, x:x+w]
+    cropped_image = aligned_image[y:y + h, x:x + w]
     return cropped_image

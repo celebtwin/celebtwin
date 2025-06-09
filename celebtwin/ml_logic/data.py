@@ -202,7 +202,8 @@ class AlignedDatasetFull(_FullDataset):
     def _iter_images_full(self, num_classes: int | None, undersample: bool) \
             -> Iterator[Path]:
         """Iterate over images in the full dataset directory."""
-        for path in _iter_image_path(self._DATASET_DIR, num_classes, undersample):
+        for path in _iter_image_path(
+                self._DATASET_DIR, num_classes, undersample):
             yield path
 
     def _iter_images_partial(
@@ -226,7 +227,8 @@ class AlignedDatasetFull(_FullDataset):
                 ignored_files = {row[0] for row in csv.reader(file)}
         with _ImageWriter(RAW_DATA, self._PARTIAL_NAME, exists_ok=True) \
                 as image_writer:
-            for input_path in pins_dataset.iter_images(num_classes, undersample):
+            for input_path in pins_dataset.iter_images(
+                    num_classes, undersample):
                 output_path = pins_dataset.translate_path(input_path)
                 if str(output_path) in ignored_files:
                     continue

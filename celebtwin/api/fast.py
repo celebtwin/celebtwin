@@ -49,8 +49,8 @@ async def create_upload_file(file: UploadFile, model: str | None = None):
         "result": class_name,
         "model": model,
         "filename": file.filename,
-        "probas" : pred.tolist(),
-        "classes" : experiment._dataset.class_names
+        "probas": pred.tolist(),
+        "classes": experiment._dataset.class_names
     }
 
 
