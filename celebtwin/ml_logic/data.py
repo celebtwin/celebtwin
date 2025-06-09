@@ -166,6 +166,8 @@ class _AlignedDatasetFull(_FullDataset):
 
     _DATASET_NAME = 'alignfull1'
     _DATASET_DIR = RAW_DATA / _DATASET_NAME
+    _PARTIAL_NAME = _DATASET_NAME + '-part'
+    _PARTIAL_DIR = RAW_DATA / _PARTIAL_NAME
 
     def iter_images(self, num_classes: int, undersample: bool) \
             -> Iterator[Path]:
@@ -180,20 +182,34 @@ class _AlignedDatasetFull(_FullDataset):
         """
         self._DATASET_DIR.mkdir(exist_ok=True)
         pins_dataset = _PinsDataset()
-        with _ImageWriter(RAW_DATA, self._DATASET_NAME, exists_ok=True) \
+        ignored_files: set[str] = set()
+        ignored_changed = False
+        ignored_path = self._PARTIAL_DIR / 'ignore.csv'
+        if ignored_path.exists():
+            with open(ignored_path) as f:
+                ignored_files = {line.strip() for line in f}
+        with _ImageWriter(RAW_DATA, self._PARTIAL_NAME, exists_ok=True) \
                 as image_writer:
             for input_path in pins_dataset.iter_images(num_classes, undersample):
                 output_path = pins_dataset.translate_path(input_path)
+                if str(output_path) in ignored_files:
+                    continue
                 if image_writer.exists(output_path):
-                    yield self._DATASET_DIR / output_path
+                    yield self._PARTIAL_DIR / output_path
                     continue
                 try:
                     aligned_face = preprocess_face_aligned(input_path)
                 except NoFaceDetectedError as error:
                     print(Fore.RED + str(error) + Style.RESET_ALL)
+                    ignored_files.add(str(output_path))
+                    ignored_changed = True
                     continue
                 image_writer.write_image(output_path, aligned_face)
-                yield self._DATASET_DIR / output_path
+                yield self._PARTIAL_DIR / output_path
+        if ignored_changed:
+            with open(ignored_path, 'w') as f:
+                for filename in sorted(ignored_files):
+                    f.write(filename + '\n')
 
     def translate_path(self, path: Path) -> Path:
         """Make a path relative to the target dataset."""
