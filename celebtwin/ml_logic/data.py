@@ -16,10 +16,6 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from enum import Enum
 from pathlib import Path
-<< << << < HEAD
-| | | | | | | bb5ed59
-== == == =
->>>>>> > refs/remotes/origin/preproc_align
 
 
 RAW_DATA = Path('raw_data')
@@ -57,9 +53,6 @@ class Dataset:
         raise NotImplementedError("Implement load_prediction in a subclass.")
 
 
-<< << << < HEAD
-
-
 class _FullDataset(ABC):
     """Abstract base class for full datasets that provide images."""
 
@@ -73,28 +66,6 @@ class _FullDataset(ABC):
     def translate_path(self, path: Path) -> Path:
         """Make a path relative to the target dataset."""
         ...
-
-
-| | | | | | | bb5ed59
-== == == =
-
-
-class _FullDataset(ABC):
-    """Abstract base class for full datasets that provide images."""
-
-    @abstractmethod
-    def iter_images(self, num_classes: int, undersample: bool) \
-            -> Iterator[Path]:
-        """Iterate over images in the dataset."""
-        ...
-
-    @abstractmethod
-    def translate_path(self, path: Path) -> Path:
-        """Make a path relative to the target dataset."""
-        ...
-
-
->>>>>> > refs/remotes/origin/preproc_align
 
 
 class ColorMode(str, Enum):
@@ -403,45 +374,25 @@ class SimpleDataset(Dataset):
 
         The directory is created at `self._dataset_path()`.
         """
-
-
-<< << << < HEAD
         downloaded = try_download_dataset(self._dataset_path())
         if downloaded:
             return
         base_dataset = self._make_base_dataset()
-| | | | | | | bb5ed59
-        pins_dataset = PinsDataset()
-== == == =
-        full_dataset = self._full_dataset()
->>>>>> > refs/remotes/origin/preproc_align
         with _ImageWriter(RAW_DATA, self.identifier) as image_writer:
-<< << << < HEAD
             input_paths = list(base_dataset.iter_images(
-| | | | | | | bb5ed59
-            input_paths=list(pins_dataset.iter_images(
-== == ===
-            input_paths=list(full_dataset.iter_images(
->>>>>> > refs/remotes/origin/preproc_align
                 self._num_classes, self._undersample))
             for input_path in tqdm(input_paths):
-<< << << < HEAD
-                output_path=base_dataset.translate_path(input_path)
-| | | | | | | bb5ed59
-                output_path=pins_dataset.translate_path(input_path)
-== == ===
-                output_path=full_dataset.translate_path(input_path)
->> >>>> > refs/remotes/origin/preproc_align
+                output_path = base_dataset.translate_path(input_path)
                 if image_writer.exists(output_path):
                     continue
-                image_tensor=self._load_image(input_path)
+                image_tensor = self._load_image(input_path)
                 image_writer.write_image(output_path, image_tensor)
         upload_dataset(self._dataset_path())
 
     def _make_base_dataset(self) -> _FullDataset:
         """Return the base dataset to process."""
-        dataset=_PinsDataset()
-        downloaded=dataset.try_download()
+        dataset = _PinsDataset()
+        downloaded = dataset.try_download()
         assert downloaded
         return dataset
 
@@ -452,42 +403,24 @@ class SimpleDataset(Dataset):
 class AlignedDataset(SimpleDataset):
     """A dataset that aligns faces in images."""
 
-    _identifier_version='align3'
+    _identifier_version = 'align3'
 
-<< << << < HEAD
     def _make_base_dataset(self) -> _FullDataset:
         """Return the base dataset to process."""
-        full_dataset=AlignedDatasetFull()
-        downloaded=full_dataset.try_download()
+        full_dataset = AlignedDatasetFull()
+        downloaded = full_dataset.try_download()
         if downloaded:
             return full_dataset
-        partial_dataset=AlignedDatasetPartial()
-        downloaded=partial_dataset.try_download()
+        partial_dataset = AlignedDatasetPartial()
+        downloaded = partial_dataset.try_download()
         assert downloaded
         return partial_dataset
-| | | | | | | bb5ed59
-    def _load_image(self, path: Path) -> np.ndarray:
-        """Load an image, align it, and resize it."""
-        if self._resize != ResizeMode.PAD:
-            raise NotImplementedError(
-                f"AlignedDataset only supports {ResizeMode.PAD} resize mode")
-        aligned_face=preprocess_face_aligned(path)
-        resized_image=tf.image.resize_with_pad(
-            aligned_face, self._image_size, self._image_size)
-        if self._color_mode == ColorMode.GRAYSCALE:
-            return rgb_to_grayscale(resized_image)
-        return resized_image
-== == ===
-    def _full_dataset(self) -> _FullDataset:
-        """Return the full dataset to process."""
-        return _AlignedDatasetFull()
->> >>>> > refs/remotes/origin/preproc_align
 
 
 def load_image(path: Path | str, image_size: int, num_channels: int,
-               resize: ResizeMode=ResizeMode.PAD) -> np.ndarray:
+               resize: ResizeMode = ResizeMode.PAD) -> np.ndarray:
     """Load one image as a numpy array using keras."""
-    crop, pad=resize.as_crop_pad()
+    crop, pad = resize.as_crop_pad()
     return keras.src.utils.image_dataset_utils.load_image(
         str(path), (image_size,) * 2, num_channels, 'bilinear',
         image_data_format(), crop, pad)
@@ -500,27 +433,27 @@ def _image_number(path: Path) -> int:
 
 
 def _iter_image_path(
-        base_dir: Path, num_classes: int | None, undersample: bool)
+        base_dir: Path, num_classes: int | None, undersample: bool) \
         -> Iterator[Path]:
     """Iterate over image paths in the dataset."""
-    input_class_dirs=list(sorted(
+    input_class_dirs = list(sorted(
         x for x in base_dir.iterdir()
         if x.is_dir() and not x.name.startswith('.')))
     if num_classes is not None:
         assert 0 < num_classes <= len(input_class_dirs)
-        input_class_dirs=input_class_dirs[:num_classes]
-    sample_size=None
-    image_glob='*.jpg'
+        input_class_dirs = input_class_dirs[:num_classes]
+    sample_size = None
+    image_glob = '*.jpg'
     if undersample:
-        sample_size=min(
+        sample_size = min(
             len(list(d.glob(image_glob))) for d in input_class_dirs)
     for input_dir in input_class_dirs:
         assert input_dir.name.startswith('pins_'),
-            f'unexpected directory: {input_dir.name}'
-        image_paths=list(
+        f'unexpected directory: {input_dir.name}'
+        image_paths = list(
             sorted(input_dir.glob(image_glob), key=_image_number))
         if sample_size is not None:
-            image_paths=image_paths[:sample_size]
+            image_paths = image_paths[:sample_size]
         for image_path in image_paths:
             yield image_path
 
@@ -529,23 +462,23 @@ class _ImageWriter:
     """Write images to a directory and a zip file."""
 
     def __init__(
-            self, data_dir: Path, data_name: str, continue_: bool=False):
-        self._data_dir=data_dir
-        self._data_name=data_name
-        self._continue=continue_
-        self._target_dir=self._data_dir / self._data_name
-        self._tmp_dir=self._target_dir.with_suffix('.tmp')
+            self, data_dir: Path, data_name: str, continue_: bool = False):
+        self._data_dir = data_dir
+        self._data_name = data_name
+        self._continue = continue_
+        self._target_dir = self._data_dir / self._data_name
+        self._tmp_dir = self._target_dir.with_suffix('.tmp')
         if continue_:
-            self._write_dir=self._target_dir
+            self._write_dir = self._target_dir
         else:
-            self._write_dir=self._tmp_dir
+            self._write_dir = self._tmp_dir
             if self._target_dir.exists():
                 raise ValueError(f'Path exists: {self._target_dir}')
 
     def close(self) -> None:
         """Rename temporary directory to its final name."""
         if not self._continue:
-            target_dir=self._target_dir
+            target_dir = self._target_dir
             self._tmp_dir.rename(target_dir)
 
     def __enter__(self):
@@ -573,16 +506,16 @@ class _ImageWriter:
             path: Path to the image, relative to the data directory.
             image_data: The image data as a numpy array.
         """
-        output_path=self._write_dir / path
+        output_path = self._write_dir / path
         if output_path.exists():
             # Calling must check for existence to avoid repeat processing.
             raise FileExistsError(f'File already exists: {output_path}')
-        jpeg_tensor=tf.image.encode_jpeg(tf.cast(image_data, tf.uint8))
-        jpeg_bytes=jpeg_tensor.numpy()  # type: ignore
+        jpeg_tensor = tf.image.encode_jpeg(tf.cast(image_data, tf.uint8))
+        jpeg_bytes = jpeg_tensor.numpy()  # type: ignore
 
-        output_dir=self._write_dir / path.parent
+        output_dir = self._write_dir / path.parent
         output_dir.mkdir(exist_ok=True)
-        tmp_path=output_dir / (path.name + '.tmp')
+        tmp_path = output_dir / (path.name + '.tmp')
         with open(tmp_path, 'wb') as output_file:
             output_file.write(jpeg_bytes)
         tmp_path.rename(output_path)
