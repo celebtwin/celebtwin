@@ -16,16 +16,15 @@ from keras.preprocessing import image_dataset_from_directory  # type: ignore
 from tqdm import tqdm  # type: ignore
 
 RAW_DATA = Path('raw_data')
-TOTAL_CLASSES = 105
 
 
 class Dataset:
     """Data used for training and evaluation."""
 
-    num_classes: int
+    num_classes: int | None
     class_names: list[str] | None
 
-    def __init__(self, num_classes: int):
+    def __init__(self, num_classes: int | None):
         self.num_classes = num_classes
         self.class_names = None
 
@@ -55,7 +54,7 @@ class _FullDataset(ABC):
     """Abstract base class for full datasets that provide images."""
 
     @abstractmethod
-    def iter_images(self, num_classes: int, undersample: bool) \
+    def iter_images(self, num_classes: int | None, undersample: bool) \
             -> Iterator[Path]:
         """Iterate over images in the dataset."""
         ...
@@ -259,7 +258,7 @@ class SimpleDataset(Dataset):
     def __init__(
             self,
             image_size: int,
-            num_classes: int = TOTAL_CLASSES,
+            num_classes: int | None = None,
             undersample: bool = False,
             color_mode: ColorMode = ColorMode.GRAYSCALE,
             resize: ResizeMode = ResizeMode.PAD,
@@ -293,7 +292,7 @@ class SimpleDataset(Dataset):
         parts = [
             self._identifier_version, str(
                 self._image_size), self._color_mode.id_part(),
-            f'c{self._num_classes}' if self._num_classes != TOTAL_CLASSES
+            f'c{self._num_classes}' if self._num_classes is not None
             else None,
             'und' if self._undersample else None,
             self._resize.id_part()]
