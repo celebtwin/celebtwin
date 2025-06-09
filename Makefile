@@ -51,7 +51,7 @@ run_api:
 
 .PHONY: train
 train:
-	python -m celebtwin train
+	python -m celebtwin train --dataset aligned --model weekend
 
 .PHONY: lint
 lint:
