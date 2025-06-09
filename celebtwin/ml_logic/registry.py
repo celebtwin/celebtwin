@@ -1,12 +1,15 @@
-from glob import glob
 import json
 import os
+import subprocess
+from glob import glob
 from pathlib import Path
 
 import keras  # type: ignore
+from google.cloud import storage  # type: ignore
+from google.cloud.exceptions import NotFound
+
 from celebtwin.ml_logic import experiment
 from celebtwin.params import BUCKET_NAME, LOCAL_REGISTRY_PATH, MODEL_TARGET
-from google.cloud import storage  # type: ignore
 
 models_dir = Path(LOCAL_REGISTRY_PATH) / "models"
 metadata_dir = Path(LOCAL_REGISTRY_PATH) / "metadata"
@@ -112,3 +115,45 @@ def load_latest_experiment() -> 'experiment.Experiment':
 
     assert False, \
         f"Unknown MODEL_TARGET: {MODEL_TARGET}. Expected 'gcs' or 'local'."
+
+
+def try_download_dataset(path: Path) -> bool:
+    """Try to download and unzip a dataset from GCS.
+
+    Args:
+        path: Path where the dataset should be extracted
+
+    Returns:
+        True if the dataset was downloaded and extracted, False if it doesn't exist
+    """
+    client = storage.Client()
+    bucket = client.bucket(BUCKET_NAME)
+    zip_path = path.with_suffix('.zip')
+    blob = bucket.blob('dataset/' + zip_path.name)
+    try:
+        blob.reload()
+    except NotFound:
+        return False
+    blob.download_to_filename(zip_path)
+    subprocess.run(['unzip', '-q', zip_path.name],
+                   cwd=path.parent, check=True)
+    zip_path.unlink()
+    return True
+
+
+def upload_dataset(path: Path) -> None:
+    """Create a zip file for a dataset and upload it to GCS.
+
+    Args:
+        path: Path to the dataset directory to upload
+    """
+    if MODEL_TARGET == 'local':
+        return
+    zip_path = path.with_suffix('.zip')
+    subprocess.run(['zip', '-r', zip_path.name, path.name],
+                   cwd=path.parent, check=True)
+    client = storage.Client()
+    bucket = client.bucket(BUCKET_NAME)
+    blob = bucket.blob('dataset/' + zip_path.name)
+    blob.upload_from_filename(zip_path)
+    zip_path.unlink()
