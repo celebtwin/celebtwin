@@ -1,5 +1,6 @@
 import shutil
 import subprocess
+from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from enum import Enum
 from pathlib import Path
@@ -12,7 +13,6 @@ from celebtwin.ml_logic.preproc_face import (
     NoFaceDetectedError, preprocess_face_aligned)
 from colorama import Fore, Style
 from keras.config import image_data_format  # type: ignore
-from keras.ops.image import rgb_to_grayscale  # type: ignore
 from keras.preprocessing import image_dataset_from_directory  # type: ignore
 from tqdm import tqdm  # type: ignore
 
@@ -50,6 +50,21 @@ class Dataset:
     def load_prediction(self, path: Path) -> np.ndarray:
         """Load an image and apply preprocessing for prediction."""
         raise NotImplementedError("Implement load_prediction in a subclass.")
+
+
+class _FullDataset(ABC):
+    """Abstract base class for full datasets that provide images."""
+
+    @abstractmethod
+    def iter_images(self, num_classes: int, undersample: bool) \
+            -> Iterator[Path]:
+        """Iterate over images in the dataset."""
+        ...
+
+    @abstractmethod
+    def translate_path(self, path: Path) -> Path:
+        """Make a path relative to the target dataset."""
+        ...
 
 
 class ColorMode(str, Enum):
@@ -109,7 +124,7 @@ def load_dataset(params: dict) -> Dataset:
     return dataset
 
 
-class PinsDataset:
+class _PinsDataset(_FullDataset):
     """The original Pins Face Recognition dataset."""
 
     FULL_DATASET = RAW_DATA / '105_classes_pins_dataset'
@@ -125,12 +140,15 @@ class PinsDataset:
                 '--output', str(self.FULL_DATA_ZIP),
                 'https://www.kaggle.com/api/v1/datasets/download/hereisburak/pins-face-recognition'
             ], check=True)
-            subprocess.run(['unzip', '-q', str(self.FULL_DATA_ZIP)],
-                           cwd=RAW_DATA, check=True)
+            subprocess.run(
+                ['unzip', '-q', str(self.FULL_DATA_ZIP)],
+                cwd=RAW_DATA, check=True)
         return _iter_image_path(self.FULL_DATASET, num_classes, undersample)
 
     def translate_path(self, input_path: Path) -> Path:
         """Translate path from the original naming to the naming we use.
+
+        Returns: Path relative to the dataset directory.
 
         The original images are named like 'pins_Adriana Lima/Adriana
         Lima101_3.jpg'. We rename them to 'AdrianaLima/003.jpg'.
@@ -142,6 +160,47 @@ class PinsDataset:
         assert input_path.name.endswith('.jpg')
         number = _image_number(input_path)
         return Path(class_name) / f"{number:03}.jpg"
+
+
+class _AlignedDatasetFull(_FullDataset):
+    """A dataset that aligns faces in images and saves them to disk."""
+
+    _DATASET_DIR = RAW_DATA / 'alignfull1'
+
+    def iter_images(self, num_classes: int, undersample: bool) \
+            -> Iterator[Path]:
+        """Process images from PinsDataset and yield paths to aligned faces.
+
+        Args:
+            num_classes: Number of celebrity classes to process
+            undersample: If True, use the same number of images per class
+
+        Yields:
+            Path to the aligned face image
+        """
+        self._DATASET_DIR.mkdir(exist_ok=True)
+        pins_dataset = _PinsDataset()
+        for input_path in pins_dataset.iter_images(num_classes, undersample):
+            output_path = pins_dataset.translate_path(input_path)
+            output_path = self._DATASET_DIR / output_path
+            if output_path.exists():
+                yield output_path
+                continue
+            output_path.parent.mkdir(exist_ok=True)
+            try:
+                aligned_face = preprocess_face_aligned(input_path)
+            except NoFaceDetectedError as error:
+                print(Fore.RED + str(error) + Style.RESET_ALL)
+                continue
+            jpeg_tensor = tf.image.encode_jpeg(tf.cast(aligned_face, tf.uint8))
+            tmp_path = output_path.with_suffix('.tmp')
+            tmp_path.write_bytes(jpeg_tensor.numpy())
+            tmp_path.rename(output_path)
+            yield output_path
+
+    def translate_path(self, path: Path) -> Path:
+        """Make a path relative to the target dataset."""
+        return path.relative_to(self._DATASET_DIR)
 
 
 class SimpleDataset(Dataset):
@@ -242,24 +301,24 @@ class SimpleDataset(Dataset):
         return load_image(
             path, self._image_size, num_channels, self._resize)
 
+    def _full_dataset(self) -> _FullDataset:
+        """Return the full dataset to process."""
+        return _PinsDataset()
+
     def _build_dataset(self) -> None:
         """Build a dataset directory and zip file.
 
         The directory is created at `self._dataset_path()`.
         """
-        pins_dataset = PinsDataset()
+        full_dataset = self._full_dataset()
         with _ImageWriter(RAW_DATA, self.identifier) as image_writer:
-            input_paths = list(pins_dataset.iter_images(
+            input_paths = list(full_dataset.iter_images(
                 self._num_classes, self._undersample))
             for input_path in tqdm(input_paths):
-                output_path = pins_dataset.translate_path(input_path)
+                output_path = full_dataset.translate_path(input_path)
                 if image_writer.exists(output_path):
                     continue
-                try:
-                    image_tensor = self._load_image(input_path)
-                except NoFaceDetectedError as error:
-                    print(Fore.RED + str(error) + Style.RESET_ALL)
-                    continue
+                image_tensor = self._load_image(input_path)
                 image_writer.write_image(output_path, image_tensor)
 
     def load_prediction(self, path: Path) -> np.ndarray:
@@ -271,17 +330,9 @@ class AlignedDataset(SimpleDataset):
 
     _identifier_version = 'align3'
 
-    def _load_image(self, path: Path) -> np.ndarray:
-        """Load an image, align it, and resize it."""
-        if self._resize != ResizeMode.PAD:
-            raise NotImplementedError(
-                f"AlignedDataset only supports {ResizeMode.PAD} resize mode")
-        aligned_face = preprocess_face_aligned(path)
-        resized_image = tf.image.resize_with_pad(
-            aligned_face, self._image_size, self._image_size)
-        if self._color_mode == ColorMode.GRAYSCALE:
-            return rgb_to_grayscale(resized_image)
-        return resized_image
+    def _full_dataset(self) -> _FullDataset:
+        """Return the full dataset to process."""
+        return _AlignedDatasetFull()
 
 
 def load_image(path: Path | str, image_size: int, num_channels: int,
