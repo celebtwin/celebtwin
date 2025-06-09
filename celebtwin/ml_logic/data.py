@@ -1,14 +1,3 @@
-from celebtwin.ml_logic.registry import try_download_dataset, upload_dataset
-from celebtwin.ml_logic.preproc_face import (
-    NoFaceDetectedError, preprocess_face_aligned)
-from tqdm import tqdm  # type: ignore
-from keras.preprocessing import image_dataset_from_directory  # type: ignore
-from keras.config import image_data_format  # type: ignore
-from colorama import Fore, Style
-import tensorflow as tf
-import numpy as np
-import keras.src.utils.image_dataset_utils  # type: ignore
-from zipfile import ZIP_STORED, ZipFile
 import csv
 import shutil
 import subprocess
@@ -17,6 +6,17 @@ from collections.abc import Iterator
 from enum import Enum
 from pathlib import Path
 
+import keras.src.utils.image_dataset_utils  # type: ignore
+import numpy as np
+import tensorflow as tf
+from colorama import Fore, Style
+from keras.config import image_data_format  # type: ignore
+from keras.preprocessing import image_dataset_from_directory  # type: ignore
+from tqdm import tqdm  # type: ignore
+
+from celebtwin.ml_logic.preproc_face import (
+    NoFaceDetectedError, preprocess_face_aligned)
+from celebtwin.ml_logic.registry import try_download_dataset, upload_dataset
 
 RAW_DATA = Path('raw_data')
 
@@ -448,8 +448,8 @@ def _iter_image_path(
         sample_size = min(
             len(list(d.glob(image_glob))) for d in input_class_dirs)
     for input_dir in input_class_dirs:
-        assert input_dir.name.startswith('pins_'),
-        f'unexpected directory: {input_dir.name}'
+        assert input_dir.name.startswith('pins_'), \
+            f'unexpected directory: {input_dir.name}'
         image_paths = list(
             sorted(input_dir.glob(image_glob), key=_image_number))
         if sample_size is not None:
