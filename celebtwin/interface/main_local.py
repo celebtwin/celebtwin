@@ -16,7 +16,10 @@ def cli():
 @click.option(
     '--model', type=click.Choice(['simple', 'weekend']), default='simple',
     help='Model to train, defaults to simple.')
-def train(dataset, model) -> None:
+@click.option(
+    '--classes', type=int,
+    help='Number of classes in the model, or "all", default to 2.')
+def train(dataset, model, classes) -> None:
     """Train on a local dataset.
 
     Save validation metrics and the trained model.
@@ -29,7 +32,6 @@ def train(dataset, model) -> None:
     print(Fore.MAGENTA + "⭐️ Training" + Style.RESET_ALL)
 
     image_size = 64
-    num_classes = 5
     color_mode = ColorMode.RGB
     batch_size = 256
     validation_split = 0.2
@@ -40,7 +42,7 @@ def train(dataset, model) -> None:
         'simple': SimpleDataset, 'aligned': AlignedDataset}[dataset]
     dataset_instance = dataset_class(
         image_size=image_size,
-        num_classes=num_classes,
+        num_classes=classes,
         undersample=False,
         color_mode=color_mode,
         resize=ResizeMode.PAD,
@@ -58,7 +60,7 @@ def train(dataset, model) -> None:
 
     model_instance.build(
         input_shape=(image_size, image_size, color_mode.num_channels()),
-        class_nb=num_classes)
+        class_nb=classes)
     experiment = Experiment(
         dataset=dataset_instance,
         model=model_instance,
