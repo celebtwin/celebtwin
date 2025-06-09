@@ -9,12 +9,14 @@ from pathlib import Path
 import keras.src.utils.image_dataset_utils  # type: ignore
 import numpy as np
 import tensorflow as tf
-from celebtwin.ml_logic.preproc_face import (
-    NoFaceDetectedError, preprocess_face_aligned)
 from colorama import Fore, Style
 from keras.config import image_data_format  # type: ignore
 from keras.preprocessing import image_dataset_from_directory  # type: ignore
 from tqdm import tqdm  # type: ignore
+
+from celebtwin.ml_logic.preproc_face import (
+    NoFaceDetectedError, preprocess_face_aligned)
+from celebtwin.ml_logic.registry import try_download_dataset, upload_dataset
 
 RAW_DATA = Path('raw_data')
 
@@ -177,6 +179,7 @@ class AlignedDatasetFull(_FullDataset):
         for _ in self._iter_images_partial(None, False):
             pass
         self._PARTIAL_DIR.rename(self._DATASET_DIR)
+        upload_dataset(self._DATASET_DIR)
 
     def iter_images(self, num_classes: int | None, undersample: bool) \
             -> Iterator[Path]:
@@ -189,10 +192,12 @@ class AlignedDatasetFull(_FullDataset):
         Yields:
             Path to the aligned face image
         """
+        if not self._DATASET_DIR.exists():
+            try_download_dataset(self._DATASET_DIR)
         if self._DATASET_DIR.exists():
-            yield from self._iter_images_full(num_classes, undersample)
+            return self._iter_images_full(num_classes, undersample)
         else:
-            yield from self._iter_images_partial(num_classes, undersample)
+            return self._iter_images_partial(num_classes, undersample)
 
     def _iter_images_full(self, num_classes: int | None, undersample: bool) \
             -> Iterator[Path]:
@@ -361,6 +366,7 @@ class SimpleDataset(Dataset):
                     continue
                 image_tensor = self._load_image(input_path)
                 image_writer.write_image(output_path, image_tensor)
+        upload_dataset(self._dataset_path())
 
     def load_prediction(self, path: Path) -> np.ndarray:
         return self._load_image(path)
