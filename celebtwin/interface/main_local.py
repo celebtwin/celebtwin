@@ -11,15 +11,21 @@ def cli():
 
 @cli.command()
 @click.option(
-    '--dataset', type=click.Choice(['aligned', 'simple']), default='simple',
+    '-d', '--dataset', type=click.Choice(['aligned', 'simple']), default='simple',
     help='Dataset preprocessing, defaults to simple.')
 @click.option(
-    '--model', type=click.Choice(['simple', 'weekend']), default='simple',
+    '-m', '--model', type=click.Choice(['simple', 'weekend']), default='simple',
     help='Model to train, defaults to simple.')
 @click.option(
-    '--classes', type=int,
+    '-c', '--classes', type=int,
     help='Number of classes in the model, or "all", default to 2.')
-def train(dataset, model, classes) -> None:
+@click.option(
+    '-l', '--learning-rate', type=float, default=0.001,
+    help='Learning rate, defaults to 0.001.')
+@click.option(
+    '-p', '--patience', type=int, default=10,
+    help='Stop after this many epochs without improvement, defaults to 10.')
+def train(dataset, model, classes, learning_rate, patience) -> None:
     """Train on a local dataset.
 
     Save validation metrics and the trained model.
@@ -35,8 +41,6 @@ def train(dataset, model, classes) -> None:
     color_mode = ColorMode.RGB
     batch_size = 256
     validation_split = 0.2
-    learning_rate = 0.00001
-    patience = 10
 
     dataset_class = {
         'simple': SimpleDataset, 'aligned': AlignedDataset}[dataset]
