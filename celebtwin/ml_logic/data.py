@@ -227,8 +227,9 @@ class AlignedDatasetFull(_FullDataset):
                 ignored_files = {row[0] for row in csv.reader(file)}
         with _ImageWriter(RAW_DATA, self._PARTIAL_NAME, continue_=True) \
                 as image_writer:
-            for input_path in pins_dataset.iter_images(
-                    num_classes, undersample):
+            input_paths = list(pins_dataset.iter_images(
+                num_classes, undersample))
+            for input_path in tqdm(input_paths):
                 output_path = pins_dataset.translate_path(input_path)
                 if str(output_path) in ignored_files:
                     continue
