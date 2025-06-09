@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 
 import numpy as np
+
 from celebtwin.ml_logic import registry
 from celebtwin.ml_logic.data import Dataset, load_dataset
 from celebtwin.ml_logic.model import Model, load_model

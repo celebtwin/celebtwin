@@ -1,12 +1,12 @@
-from fastapi import FastAPI, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
-
 # from tempfile import SpooledTemporaryFile
 from pathlib import Path
 
-from celebtwin.params import LOCAL_DOWNLOAD_IMAGES_PATH
-from celebtwin.ml_logic.registry import load_latest_experiment
+from fastapi import FastAPI, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+
 from celebtwin.ml_logic.preproc_face import NoFaceDetectedError
+from celebtwin.ml_logic.registry import load_latest_experiment
+from celebtwin.params import LOCAL_DOWNLOAD_IMAGES_PATH
 
 app = FastAPI()
 # app.state.model = load_model()

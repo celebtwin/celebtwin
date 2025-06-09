@@ -3,10 +3,11 @@ from pathlib import Path
 import keras  # type: ignore
 import numpy as np
 import tensorflow as tf
-from celebtwin.ml_logic import registry
 from colorama import Fore, Style
 from keras import Input, Sequential, layers, optimizers
 from keras.callbacks import EarlyStopping  # type: ignore
+
+from celebtwin.ml_logic import registry
 
 
 class Model:

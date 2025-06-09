@@ -19,7 +19,8 @@ def train(dataset) -> None:
     Save validation metrics and the trained model.
     """
     print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
-    from celebtwin.ml_logic.data import AlignedDataset, ColorMode, ResizeMode, SimpleDataset
+    from celebtwin.ml_logic.data import (
+        AlignedDataset, ColorMode, ResizeMode, SimpleDataset)
     from celebtwin.ml_logic.experiment import Experiment
     from celebtwin.ml_logic.model import SimpleLeNetModel, WeekendModel
     print(Fore.MAGENTA + "⭐️ Training" + Style.RESET_ALL)
@@ -71,9 +72,9 @@ def batch_align() -> None:
 def pred(image_path) -> None:
     """Predict the class of a single image."""
     print(Fore.MAGENTA + "⭐️ Predicting" + Style.RESET_ALL)
+    from celebtwin.ml_logic.preproc_face import NoFaceDetectedError
     from celebtwin.ml_logic.registry import (
         NoModelFoundError, load_latest_experiment)
-    from celebtwin.ml_logic.preproc_face import NoFaceDetectedError
     try:
         experiment = load_latest_experiment()
     except NoModelFoundError as error:
