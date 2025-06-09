@@ -131,19 +131,24 @@ class _PinsDataset(_FullDataset):
     FULL_DATASET = RAW_DATA / '105_classes_pins_dataset'
     FULL_DATA_ZIP = RAW_DATA / 'pins-face-recognition.zip'
 
-    def iter_images(self, num_classes: int | None, undersample: bool) \
-            -> Iterator[Path]:
-        """Download, unzip and iterate over the Pins dataset."""
-        if not self.FULL_DATASET.exists():
-            RAW_DATA.mkdir(exist_ok=True)
+    def try_download(self) -> bool:
+        """Try to download the dataset."""
+        if self.FULL_DATASET.exists():
+            return True
+        if not self.FULL_DATA_ZIP.exists():
             subprocess.run([
                 'curl', '--location', '--continue-at', '-',
                 '--output', str(self.FULL_DATA_ZIP),
                 'https://www.kaggle.com/api/v1/datasets/download/hereisburak/pins-face-recognition'
             ], check=True)
-            subprocess.run(
-                ['unzip', '-q', str(self.FULL_DATA_ZIP)],
-                cwd=RAW_DATA, check=True)
+        subprocess.run(
+            ['unzip', '-q', str(self.FULL_DATA_ZIP)],
+            cwd=RAW_DATA, check=True)
+        return True
+
+    def iter_images(self, num_classes: int | None, undersample: bool) \
+            -> Iterator[Path]:
+        """Iterate over the dataset."""
         return _iter_image_path(self.FULL_DATASET, num_classes, undersample)
 
     def translate_path(self, input_path: Path) -> Path:
@@ -165,47 +170,59 @@ class _PinsDataset(_FullDataset):
 class AlignedDatasetFull(_FullDataset):
     """A dataset that aligns faces in images and saves them to disk."""
 
-    _DATASET_NAME = 'alignfull1'
-    _DATASET_DIR = RAW_DATA / _DATASET_NAME
-    _PARTIAL_NAME = _DATASET_NAME + '-part'
-    _PARTIAL_DIR = RAW_DATA / _PARTIAL_NAME
+    DATASET_NAME = 'alignfull1'
+    DATASET_DIR = RAW_DATA / DATASET_NAME
 
     def preprocess_all(self) -> None:
-        """Process all images, rename directory to dataset_dir, and create zip."""
-        if self._DATASET_DIR.exists():
+        """Process all images, rename directory to dataset_dir, and create
+        zip."""
+        if self.DATASET_DIR.exists():
             raise ValueError(
-                f'Dataset directory already exists: {self._DATASET_DIR}')
-        for _ in self._iter_images_partial(None, False):
+                f'Dataset directory already exists: {self.DATASET_DIR}')
+        partial = AlignedDatasetPartial()
+        for _ in partial.iter_images(None, False):
             pass
-        self._PARTIAL_DIR.rename(self._DATASET_DIR)
-        upload_dataset(self._DATASET_DIR)
+        partial.PARTIAL_DIR.rename(self.DATASET_DIR)
+        upload_dataset(self.DATASET_DIR)
+
+    def try_download(self) -> bool:
+        """Try to download the dataset."""
+        if self.DATASET_DIR.exists():
+            return True
+        return try_download_dataset(self.DATASET_DIR)
 
     def iter_images(self, num_classes: int | None, undersample: bool) \
             -> Iterator[Path]:
-        """Process images and yield paths to aligned faces.
-
-        Args:
-            num_classes: Number of celebrity classes to process, None for all.
-            undersample: If True, use the same number of images per class.
-
-        Yields:
-            Path to the aligned face image
-        """
-        if not self._DATASET_DIR.exists():
-            try_download_dataset(self._DATASET_DIR)
-        if self._DATASET_DIR.exists():
-            return self._iter_images_full(num_classes, undersample)
-        else:
-            return self._iter_images_partial(num_classes, undersample)
-
-    def _iter_images_full(self, num_classes: int | None, undersample: bool) \
-            -> Iterator[Path]:
         """Iterate over images in the full dataset directory."""
+        if not self.DATASET_DIR.exists():
+            raise ValueError(
+                'Dataset does not exist. Use AlignedDatasetPartial instead.')
         for path in _iter_image_path(
-                self._DATASET_DIR, num_classes, undersample):
+                self.DATASET_DIR, num_classes, undersample):
             yield path
 
-    def _iter_images_partial(
+    def translate_path(self, path: Path) -> Path:
+        """Make a path relative to the target dataset."""
+        return path.relative_to(self.DATASET_DIR)
+
+
+class AlignedDatasetPartial(_FullDataset):
+    """A dataset that aligns faces in images.
+
+    The dataset is built on the fly from the PinsDataset.
+    """
+
+    PARTIAL_NAME = 'alignfull1-part'
+    PARTIAL_DIR = RAW_DATA / PARTIAL_NAME
+
+    def __init__(self):
+        self._pins_dataset = _PinsDataset()
+
+    def try_download(self) -> bool:
+        """Try to download the dataset."""
+        return self._pins_dataset.try_download()
+
+    def iter_images(
         self, num_classes: int | None, undersample: bool) \
             -> Iterator[Path]:
         """Process images from PinsDataset and yield paths to aligned faces.
@@ -217,23 +234,22 @@ class AlignedDatasetFull(_FullDataset):
         Yields:
             Path to the aligned face image
         """
-        self._PARTIAL_DIR.mkdir(exist_ok=True)
-        pins_dataset = _PinsDataset()
+        self.PARTIAL_DIR.mkdir(exist_ok=True)
         ignored_files: set[str] = set()
-        ignored_path = self._PARTIAL_DIR / 'ignore.csv'
+        ignored_path = self.PARTIAL_DIR / 'ignore.csv'
         if ignored_path.exists():
             with open(ignored_path, 'r', encoding='utf-8', newline='') as file:
                 ignored_files = {row[0] for row in csv.reader(file)}
-        with _ImageWriter(RAW_DATA, self._PARTIAL_NAME, continue_=True) \
+        with _ImageWriter(RAW_DATA, self.PARTIAL_NAME, continue_=True) \
                 as image_writer:
-            input_paths = list(pins_dataset.iter_images(
+            input_paths = list(self._pins_dataset.iter_images(
                 num_classes, undersample))
             for input_path in tqdm(input_paths, miniters=0):
-                output_path = pins_dataset.translate_path(input_path)
+                output_path = self._pins_dataset.translate_path(input_path)
                 if str(output_path) in ignored_files:
                     continue
                 if image_writer.exists(output_path):
-                    yield self._PARTIAL_DIR / output_path
+                    yield self.PARTIAL_DIR / output_path
                     continue
                 try:
                     aligned_face = preprocess_face_aligned(input_path)
@@ -244,11 +260,11 @@ class AlignedDatasetFull(_FullDataset):
                         csv.writer(file).writerow([str(output_path)])
                     continue
                 image_writer.write_image(output_path, aligned_face)
-                yield self._PARTIAL_DIR / output_path
+                yield self.PARTIAL_DIR / output_path
 
     def translate_path(self, path: Path) -> Path:
         """Make a path relative to the target dataset."""
-        return path.relative_to(self._DATASET_DIR)
+        return path.relative_to(self.PARTIAL_DIR)
 
 
 class SimpleDataset(Dataset):
@@ -349,10 +365,6 @@ class SimpleDataset(Dataset):
         return load_image(
             path, self._image_size, num_channels, self._resize)
 
-    def _full_dataset(self) -> _FullDataset:
-        """Return the full dataset to process."""
-        return _PinsDataset()
-
     def _build_dataset(self) -> None:
         """Build a dataset directory and zip file.
 
@@ -361,17 +373,24 @@ class SimpleDataset(Dataset):
         downloaded = try_download_dataset(self._dataset_path())
         if downloaded:
             return
-        full_dataset = self._full_dataset()
+        base_dataset = self._make_base_dataset()
         with _ImageWriter(RAW_DATA, self.identifier) as image_writer:
-            input_paths = list(full_dataset.iter_images(
+            input_paths = list(base_dataset.iter_images(
                 self._num_classes, self._undersample))
             for input_path in tqdm(input_paths):
-                output_path = full_dataset.translate_path(input_path)
+                output_path = base_dataset.translate_path(input_path)
                 if image_writer.exists(output_path):
                     continue
                 image_tensor = self._load_image(input_path)
                 image_writer.write_image(output_path, image_tensor)
         upload_dataset(self._dataset_path())
+
+    def _make_base_dataset(self) -> _FullDataset:
+        """Return the base dataset to process."""
+        dataset = _PinsDataset()
+        downloaded = dataset.try_download()
+        assert downloaded
+        return dataset
 
     def load_prediction(self, path: Path) -> np.ndarray:
         return self._load_image(path)
@@ -382,9 +401,16 @@ class AlignedDataset(SimpleDataset):
 
     _identifier_version = 'align3'
 
-    def _full_dataset(self) -> _FullDataset:
-        """Return the full dataset to process."""
-        return AlignedDatasetFull()
+    def _make_base_dataset(self) -> _FullDataset:
+        """Return the base dataset to process."""
+        full_dataset = AlignedDatasetFull()
+        downloaded = full_dataset.try_download()
+        if downloaded:
+            return full_dataset
+        partial_dataset = AlignedDatasetPartial()
+        downloaded = partial_dataset.try_download()
+        assert downloaded
+        return partial_dataset
 
 
 def load_image(path: Path | str, image_size: int, num_channels: int,
