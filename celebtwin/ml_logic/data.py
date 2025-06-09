@@ -176,8 +176,6 @@ class AlignedDatasetFull(_FullDataset):
         for _ in self._iter_images_partial(None, False):
             pass
         self._PARTIAL_DIR.rename(self._DATASET_DIR)
-        with _ImageWriter(RAW_DATA, self._DATASET_NAME) as image_writer:
-            image_writer.make_zip()
 
     def iter_images(self, num_classes: int | None, undersample: bool) \
             -> Iterator[Path]:
@@ -366,7 +364,6 @@ class SimpleDataset(Dataset):
                     continue
                 image_tensor = self._load_image(input_path)
                 image_writer.write_image(output_path, image_tensor)
-        image_writer.make_zip()
 
     def load_prediction(self, path: Path) -> np.ndarray:
         return self._load_image(path)
@@ -436,13 +433,6 @@ class _ImageWriter:
 
     def _target_path(self, suffix: str = '') -> Path:
         return self._data_dir / (self._data_name + suffix)
-
-    def make_zip(self) -> None:
-        """Create a zip file of the dataset directory."""
-        zip_path = self._target_path('.zip.tmp')
-        subprocess.run(['zip', '-r', str(zip_path), self._data_name],
-                       cwd=self._data_dir, check=True)
-        zip_path.rename(self._target_path('.zip'))
 
     def close(self) -> None:
         """Rename temporary directory to its final name."""
