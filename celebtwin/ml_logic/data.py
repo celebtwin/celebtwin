@@ -174,13 +174,36 @@ class AlignedDatasetFull(_FullDataset):
         if self._DATASET_DIR.exists():
             raise ValueError(
                 f'Dataset directory already exists: {self._DATASET_DIR}')
-        for _ in self.iter_images(None, False):
+        for _ in self._iter_images_partial(None, False):
             pass
         self._PARTIAL_DIR.rename(self._DATASET_DIR)
         with _ImageWriter(RAW_DATA, self._DATASET_NAME) as image_writer:
             image_writer.make_zip()
 
     def iter_images(self, num_classes: int | None, undersample: bool) \
+            -> Iterator[Path]:
+        """Process images and yield paths to aligned faces.
+
+        Args:
+            num_classes: Number of celebrity classes to process, None for all.
+            undersample: If True, use the same number of images per class.
+
+        Yields:
+            Path to the aligned face image
+        """
+        if self._DATASET_DIR.exists():
+            yield from self._iter_images_full(num_classes, undersample)
+        else:
+            yield from self._iter_images_partial(num_classes, undersample)
+
+    def _iter_images_full(self, num_classes: int | None, undersample: bool) \
+            -> Iterator[Path]:
+        """Iterate over images in the full dataset directory."""
+        for path in _iter_image_path(self._DATASET_DIR, num_classes, undersample):
+            yield path
+
+    def _iter_images_partial(
+        self, num_classes: int | None, undersample: bool) \
             -> Iterator[Path]:
         """Process images from PinsDataset and yield paths to aligned faces.
 
