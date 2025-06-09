@@ -7,6 +7,7 @@ help:
 	@echo "make lint    - run code analysis and style checks"
 	@echo "make requirements - install requirements"
 	@echo "make pip-compile  - compile requirements files"
+	@echo "make ssh       - ssh into the instance"
 
 PY_VERSION=3.10.17
 .PHONY: setup
@@ -89,6 +90,8 @@ image-prod:
 PROJECT=celebtwin
 REGION=europe-west4
 REPO=docker
+INSTANCE=celebtwin-instance
+ZONE=europe-west4-b
 
 .PHONY: image-create-repo
 image-create-repo:
@@ -114,3 +117,7 @@ image-deploy:
 		--image=$(REGION)-docker.pkg.dev/$(PROJECT)/$(REPO)/$(IMAGE) \
 		--memory=1G \
 		--allow-unauthenticated
+
+.PHONY: ssh
+ssh:
+	gcloud compute ssh $(INSTANCE) --project=$(PROJECT) --zone=$(ZONE) -- -A
