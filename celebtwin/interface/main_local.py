@@ -13,7 +13,10 @@ def cli():
 @click.option(
     '--dataset', type=click.Choice(['aligned', 'simple']), default='simple',
     help='Dataset preprocessing, defaults to simple.')
-def train(dataset) -> None:
+@click.option(
+    '--model', type=click.Choice(['simple', 'weekend']), default='simple',
+    help='Model to train, defaults to simple.')
+def train(dataset, model) -> None:
     """Train on a local dataset.
 
     Save validation metrics and the trained model.
@@ -43,13 +46,22 @@ def train(dataset) -> None:
         resize=ResizeMode.PAD,
         batch_size=batch_size,
         validation_split=validation_split)
-    model = WeekendModel()
-    model.build(
+
+    # Annoying code needed to avoid type errors when building the model.
+    model_instance: SimpleLeNetModel | WeekendModel
+    if model == 'simple':
+        model_instance = SimpleLeNetModel()
+    elif model == 'weekend':
+        model_instance = WeekendModel()
+    else:
+        raise AssertionError(f"Invalid model: {model}")
+
+    model_instance.build(
         input_shape=(image_size, image_size, color_mode.num_channels()),
         class_nb=num_classes)
     experiment = Experiment(
         dataset=dataset_instance,
-        model=model,
+        model=model_instance,
         learning_rate=learning_rate,
         patience=patience)
     experiment.run()
