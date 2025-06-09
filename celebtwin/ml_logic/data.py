@@ -225,7 +225,7 @@ class AlignedDatasetFull(_FullDataset):
         if ignored_path.exists():
             with open(ignored_path, 'r', encoding='utf-8', newline='') as file:
                 ignored_files = {row[0] for row in csv.reader(file)}
-        with _ImageWriter(RAW_DATA, self._PARTIAL_NAME, exists_ok=True) \
+        with _ImageWriter(RAW_DATA, self._PARTIAL_NAME, continue_=True) \
                 as image_writer:
             for input_path in pins_dataset.iter_images(
                     num_classes, undersample):
@@ -429,36 +429,44 @@ class _ImageWriter:
     """Write images to a directory and a zip file."""
 
     def __init__(
-            self, data_dir: Path, data_name: str, exists_ok: bool = False):
+            self, data_dir: Path, data_name: str, continue_: bool = False):
         self._data_dir = data_dir
         self._data_name = data_name
+        self._continue = continue_
         self._tmp_dir = self._target_path('.tmp')
-        if not exists_ok and self._target_path().exists():
-            raise ValueError(f'Path exists: {self._target_path()}')
+        if continue_:
+            self._write_dir = self._data_dir
+        else:
+            self._write_dir = self._tmp_dir
+            if self._data_dir.exists():
+                raise ValueError(f'Path exists: {self._data_dir}')
 
     def _target_path(self, suffix: str = '') -> Path:
         return self._data_dir / (self._data_name + suffix)
 
     def close(self) -> None:
         """Rename temporary directory to its final name."""
-        target_dir = self._target_path()
-        self._tmp_dir.rename(target_dir)
+        if not self._continue:
+            target_dir = self._target_path()
+            self._tmp_dir.rename(target_dir)
 
     def __enter__(self):
-        if self._tmp_dir.exists():
-            shutil.rmtree(self._tmp_dir)
-        self._tmp_dir.mkdir()
+        if self._continue:
+            self._data_dir.mkdir(exist_ok=True)
+        else:
+            if self._tmp_dir.exists():
+                shutil.rmtree(self._tmp_dir)
+            self._tmp_dir.mkdir()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type is None:
             self.close()
         else:
-            self._target_path('.zip.tmp').unlink(missing_ok=True)
             shutil.rmtree(self._tmp_dir)
 
     def exists(self, path: Path) -> bool:
-        return (self._tmp_dir / path).exists()
+        return (self._write_dir / path).exists()
 
     def write_image(self, path: Path, image_data: np.ndarray):
         """Write an image tensor to a file and add it to the zip archive.
@@ -467,14 +475,14 @@ class _ImageWriter:
             path: Path to the image, relative to the data directory.
             image_data: The image data as a numpy array.
         """
-        tmp_path = self._tmp_dir / path
+        tmp_path = self._write_dir / path
         if tmp_path.exists():
             # Calling must check for existence to avoid repeat processing.
             raise FileExistsError(f'File already exists: {tmp_path}')
         jpeg_tensor = tf.image.encode_jpeg(tf.cast(image_data, tf.uint8))
         jpeg_bytes = jpeg_tensor.numpy()  # type: ignore
 
-        output_dir = self._tmp_dir / path.parent
+        output_dir = self._write_dir / path.parent
         output_dir.mkdir(exist_ok=True)
         tmp_path = output_dir / (path.name + '.tmp')
         with open(tmp_path, 'wb') as output_file:
