@@ -157,7 +157,6 @@ class _PinsDataset(_FullDataset):
         class_name = input_path.parent.name
         assert class_name.startswith('pins_')
         class_name = class_name.removeprefix('pins_').replace(' ', '')
-        assert input_path.name.startswith(class_name)
         assert input_path.name.endswith('.jpg')
         number = _image_number(input_path)
         return Path(class_name) / f"{number:03}.jpg"
@@ -218,7 +217,7 @@ class AlignedDatasetFull(_FullDataset):
         Yields:
             Path to the aligned face image
         """
-        self._DATASET_DIR.mkdir(exist_ok=True)
+        self._PARTIAL_DIR.mkdir(exist_ok=True)
         pins_dataset = _PinsDataset()
         ignored_files: set[str] = set()
         ignored_path = self._PARTIAL_DIR / 'ignore.csv'
@@ -229,7 +228,7 @@ class AlignedDatasetFull(_FullDataset):
                 as image_writer:
             input_paths = list(pins_dataset.iter_images(
                 num_classes, undersample))
-            for input_path in tqdm(input_paths):
+            for input_path in tqdm(input_paths, miniters=0):
                 output_path = pins_dataset.translate_path(input_path)
                 if str(output_path) in ignored_files:
                     continue
@@ -434,21 +433,19 @@ class _ImageWriter:
         self._data_dir = data_dir
         self._data_name = data_name
         self._continue = continue_
-        self._tmp_dir = self._target_path('.tmp')
+        self._target_dir = self._data_dir / self._data_name
+        self._tmp_dir = self._target_dir.with_suffix('.tmp')
         if continue_:
-            self._write_dir = self._data_dir
+            self._write_dir = self._target_dir
         else:
             self._write_dir = self._tmp_dir
-            if self._data_dir.exists():
-                raise ValueError(f'Path exists: {self._data_dir}')
-
-    def _target_path(self, suffix: str = '') -> Path:
-        return self._data_dir / (self._data_name + suffix)
+            if self._target_dir.exists():
+                raise ValueError(f'Path exists: {self._target_dir}')
 
     def close(self) -> None:
         """Rename temporary directory to its final name."""
         if not self._continue:
-            target_dir = self._target_path()
+            target_dir = self._target_dir
             self._tmp_dir.rename(target_dir)
 
     def __enter__(self):
@@ -463,7 +460,7 @@ class _ImageWriter:
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type is None:
             self.close()
-        else:
+        elif not self._continue:
             shutil.rmtree(self._tmp_dir)
 
     def exists(self, path: Path) -> bool:
@@ -476,10 +473,10 @@ class _ImageWriter:
             path: Path to the image, relative to the data directory.
             image_data: The image data as a numpy array.
         """
-        tmp_path = self._write_dir / path
-        if tmp_path.exists():
+        output_path = self._write_dir / path
+        if output_path.exists():
             # Calling must check for existence to avoid repeat processing.
-            raise FileExistsError(f'File already exists: {tmp_path}')
+            raise FileExistsError(f'File already exists: {output_path}')
         jpeg_tensor = tf.image.encode_jpeg(tf.cast(image_data, tf.uint8))
         jpeg_bytes = jpeg_tensor.numpy()  # type: ignore
 
@@ -488,4 +485,4 @@ class _ImageWriter:
         tmp_path = output_dir / (path.name + '.tmp')
         with open(tmp_path, 'wb') as output_file:
             output_file.write(jpeg_bytes)
-        tmp_path.rename(tmp_path.with_suffix(''))
+        tmp_path.rename(output_path)
