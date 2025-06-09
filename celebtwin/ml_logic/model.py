@@ -79,8 +79,13 @@ class Model:
 
 
 def load_model(params: dict, keras_path: str | Path) -> Model:
-    assert params['model_class'] == 'SimpleLeNetModel'
-    model = SimpleLeNetModel()
+
+    class_map = {
+        'SimpleLeNetModel': SimpleLeNetModel,
+        'WeekendModel': WeekendModel}
+    assert params['model_class'] in class_map, \
+        f"Unexpected dataset class: {params['model_class']}"
+    model = class_map[params['model_class']]()
     model.load(params, keras_path)
     return model
 
