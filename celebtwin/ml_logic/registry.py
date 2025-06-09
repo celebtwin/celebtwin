@@ -53,6 +53,7 @@ def save_model(model: keras.Model, identifier: str):
         client = storage.Client()
         bucket = client.bucket(BUCKET_NAME)
         blob = bucket.blob(f"models/staging/{model_path.name}")
+        print("☁️ Uploading model to GCS: " + model_path.name)
         blob.upload_from_filename(model_path)
         print("✅ Model saved to GCS")
 
@@ -97,6 +98,7 @@ def load_latest_experiment() -> 'experiment.Experiment':
         metadata_path = metadata_dir / metadata_name
         if not (model_path).exists():
             os.makedirs(models_dir, exist_ok=True)
+            print("☁️ Downloading model from GCS: " + model_name)
             latest_blob.download_to_filename(model_path)
             os.makedirs(metadata_dir, exist_ok=True)
             bucket.blob(f"metadata/{metadata_name}")\
@@ -134,7 +136,9 @@ def try_download_dataset(path: Path) -> bool:
         blob.reload()
     except NotFound:
         return False
+    print("☁️ Downloading dataset from GCS: " + zip_path.name)
     blob.download_to_filename(zip_path)
+    print("✅ Dataset downloaded from GCS")
     subprocess.run(['unzip', '-q', zip_path.name],
                    cwd=path.parent, check=True)
     zip_path.unlink()
@@ -150,10 +154,12 @@ def upload_dataset(path: Path) -> None:
     if MODEL_TARGET == 'local':
         return
     zip_path = path.with_suffix('.zip')
-    subprocess.run(['zip', '-r', zip_path.name, path.name],
+    subprocess.run(['zip', '-q', '-r', zip_path.name, path.name],
                    cwd=path.parent, check=True)
     client = storage.Client()
     bucket = client.bucket(BUCKET_NAME)
     blob = bucket.blob('dataset/' + zip_path.name)
+    print("☁️ Uploading dataset to GCS: " + zip_path.name)
     blob.upload_from_filename(zip_path)
+    print("✅ Dataset uploaded to GCS")
     zip_path.unlink()
