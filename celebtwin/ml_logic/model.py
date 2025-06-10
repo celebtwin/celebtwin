@@ -6,6 +6,7 @@ import tensorflow as tf
 from colorama import Fore, Style
 from keras import Input, Sequential, layers, optimizers
 from keras.callbacks import EarlyStopping  # type: ignore
+#from tensorflow.keras.layers import Input, Convolution2D, ZeroPadding2D,MaxPooling2D, Flatten, Dense, Dropout, Activation
 
 from celebtwin.ml_logic import registry
 
@@ -93,7 +94,8 @@ def load_model(params: dict, keras_path: str | Path) -> Model:
 
     class_map = {
         'SimpleLeNetModel': SimpleLeNetModel,
-        'WeekendModel': WeekendModel}
+        'WeekendModel': WeekendModel,
+        'VGGface' : VGGface}
     assert params['model_class'] in class_map, \
         f"Unexpected dataset class: {params['model_class']}"
     model = class_map[params['model_class']]()
@@ -205,6 +207,69 @@ class WeekendModel(Model):
 
             # Classification Layer: n outputs corresponding to n celebrities
             layers.Dense(class_nb, activation='softmax')])
+
+    def compile(self, learning_rate: float) -> None:
+        if self._model is None:
+            raise ValueError("Model has not been built yet.")
+        self._learning_rate = learning_rate
+        optimizer = optimizers.Adam(learning_rate=learning_rate)
+        self._model.compile(
+            loss='categorical_crossentropy',
+            optimizer=optimizer,  # type: ignore
+            metrics=['accuracy'])
+        print("✅ Model compiled")
+
+class VGGface(Model):
+    """A more advanced model for image classification.
+
+    This model is a VGG-like architecture.
+    """
+
+    @property
+    def identifier(self) -> str:
+        """Unique identifier for the model."""
+        return '-'.join([
+            "v1VGGface",
+            f"r{self._learning_rate}",
+            f"p{self._patience}"])
+
+    def build(self, input_shape: tuple, class_nb: int):
+        super().__init__()
+
+        def get_encoder(input_shape = (300, 300, 3), pretrained_trainable_layers:int = 27):
+            """ https://medium.com/@ohr.morris/face-identification-using-few-shot-learning-with-triplet-loss-b9f6b8ea595d """
+            # Backbone model pretrained with ImageNet
+            pretrained_model = tf.keras.applications.Xception(
+                input_shape=input_shape,
+                weights='imagenet',
+                include_top=False,
+                pooling='avg',
+            )
+
+            # Freeze pretrained layers
+            for i in range(len(pretrained_model.layers)-pretrained_trainable_layers):
+                pretrained_model.layers[i].trainable = False
+
+            # MLP
+            encoder_model = Sequential([
+                pretrained_model,
+                layers.Flatten(),
+                layers.Dense(1024, activation='relu'),
+                layers.Dropout(0.3),
+                layers.BatchNormalization(),
+                layers.Dense(512, activation='relu'),
+                layers.Dropout(0.2),
+                layers.BatchNormalization(),
+                layers.Dense(256, activation="relu"),
+                layers.Dropout(0.05),
+                layers.BatchNormalization(),
+                layers.Dense(128, activation=None),
+                layers.Lambda(lambda x: tf.math.l2_normalize(x, axis=1))
+                ], name="Encoder_Model")
+
+            return encoder_model
+
+        self._model = get_encoder(input_shape = (300, 300, 3), pretrained_trainable_layers = 27)
 
     def compile(self, learning_rate: float) -> None:
         if self._model is None:
