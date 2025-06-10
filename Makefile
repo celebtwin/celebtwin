@@ -61,19 +61,19 @@ lint:
 	-mypy celebtwin
 
 .PHONY: requirements
-requirements:
-	pip install --upgrade pip
-	pip install -r requirements.txt
-	pip install -r requirements-dev.txt
+requirements: pip-compile
+	pip install --quiet --upgrade pip
+	pip install --quiet -r requirements.txt -r requirements-dev.txt
 
 .PHONY: pip-compile
 pip-compile: requirements.txt requirements-dev.txt
 
 requirements.txt: requirements.in
-	pip-compile requirements.in
+	pip-compile --quiet --strip-extras requirements.in
 
 requirements-dev.txt: requirements-dev.in requirements.txt
-	pip-compile --constraint=requirements.txt requirements-dev.in
+	pip-compile --quiet --strip-extras --constraint=requirements.txt \
+	requirements-dev.in
 
 # Name of Docker image
 IMAGE=celebtwin
