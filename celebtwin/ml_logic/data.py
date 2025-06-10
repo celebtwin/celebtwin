@@ -16,7 +16,6 @@ from tqdm import tqdm  # type: ignore
 
 from celebtwin.ml_logic.preproc_face import (
     NoFaceDetectedError, preprocess_face_aligned)
-from celebtwin.ml_logic.registry import try_download_dataset, upload_dataset
 
 RAW_DATA = Path('raw_data')
 
@@ -178,8 +177,8 @@ class AlignedDatasetFull(_FullDataset):
     DATASET_DIR = RAW_DATA / DATASET_NAME
 
     def preprocess_all(self) -> None:
-        """Process all images, rename directory to dataset_dir, and create
-        zip."""
+        """Process all images, rename directory to dataset_dir and upload."""
+        from celebtwin.ml_logic.registry import upload_dataset
         if self.DATASET_DIR.exists():
             raise ValueError(
                 f'Dataset directory already exists: {self.DATASET_DIR}')
@@ -191,6 +190,7 @@ class AlignedDatasetFull(_FullDataset):
 
     def try_download(self) -> bool:
         """Try to download the dataset."""
+        from celebtwin.ml_logic.registry import try_download_dataset
         if self.DATASET_DIR.exists():
             return True
         return try_download_dataset(self.DATASET_DIR)
@@ -378,6 +378,8 @@ class SimpleDataset(Dataset):
 
         The directory is created at `self._dataset_path()`.
         """
+        from celebtwin.ml_logic.registry import (
+            try_download_dataset, upload_dataset)
         downloaded = try_download_dataset(self._dataset_path())
         if downloaded:
             return
