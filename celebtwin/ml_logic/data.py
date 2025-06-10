@@ -354,8 +354,9 @@ class SimpleDataset(Dataset):
             'class_names': self.class_names,
         }
 
-    def _dataset_path(self) -> Path:
-        """Return the path to the dataset directory."""
+    @property
+    def _dataset_dir(self) -> Path:
+        """Path to the dataset directory."""
         return RAW_DATA / self.identifier
 
     def load(self) -> tuple[tf.data.Dataset, tf.data.Dataset]:
@@ -364,11 +365,11 @@ class SimpleDataset(Dataset):
         Returns:
             tuple: A tuple containing the training dataset and validation dataset.
         """
-        if not self._dataset_path().exists():
+        if not self._dataset_dir.exists():
             self._build_dataset()
         crop, pad = self._resize.as_crop_pad()
         train_data, val_data = image_dataset_from_directory(
-            str(self._dataset_path()),
+            str(self._dataset_dir),
             label_mode='categorical',
             color_mode=self._color_mode,
             image_size=(self._image_size,) * 2,
@@ -394,11 +395,11 @@ class SimpleDataset(Dataset):
     def _build_dataset(self) -> None:
         """Build a dataset directory and zip file.
 
-        The directory is created at `self._dataset_path()`.
+        The directory is created at `self._dataset_dir`.
         """
         from celebtwin.ml_logic.registry import (
             try_download_dataset, upload_dataset)
-        downloaded = try_download_dataset(self._dataset_path())
+        downloaded = try_download_dataset(self._dataset_dir)
         if downloaded:
             return
         base_dataset = self._make_base_dataset()
@@ -411,7 +412,7 @@ class SimpleDataset(Dataset):
                     continue
                 image_tensor = self._load_image(input_path)
                 image_writer.write_image(relative_path, image_tensor)
-        upload_dataset(self._dataset_path())
+        upload_dataset(self._dataset_dir)
 
     def _make_base_dataset(self) -> _FullDataset:
         """Return the base dataset to process."""
