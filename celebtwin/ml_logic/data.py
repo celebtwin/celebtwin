@@ -207,6 +207,7 @@ class AlignedDatasetFull(_FullDataset):
             raise ValueError(
                 f'Dataset directory already exists: {self._dataset_dir}')
         partial = _AlignedDatasetPartial()
+        partial.try_download()
         for _ in partial.iter_images(None, False):
             pass
         partial.rename_dataset_dir(self._dataset_dir)
