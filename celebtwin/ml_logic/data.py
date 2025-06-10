@@ -266,8 +266,7 @@ class _AlignedDatasetPartial(_FullDataset):
         if ignored_path.exists():
             with open(ignored_path, 'r', encoding='utf-8', newline='') as file:
                 ignored_files = {row[0] for row in csv.reader(file)}
-        with _ImageWriter(RAW_DATA, self._dataset_dir.name, continue_=True) \
-                as image_writer:
+        with _ImageWriter(self._dataset_dir, continue_=True) as image_writer:
             input_paths = list(self._pins_dataset.iter_images(
                 num_classes, undersample))
             for input_path in tqdm(input_paths, miniters=0):
@@ -403,7 +402,7 @@ class SimpleDataset(Dataset):
         if downloaded:
             return
         base_dataset = self._make_base_dataset()
-        with _ImageWriter(RAW_DATA, self.identifier) as image_writer:
+        with _ImageWriter(self._dataset_dir) as image_writer:
             input_paths = list(base_dataset.iter_images(
                 self._num_classes, self._undersample))
             for input_path in tqdm(input_paths):
@@ -479,12 +478,9 @@ def _iter_image_path(
 class _ImageWriter:
     """Write images to a directory."""
 
-    def __init__(
-            self, data_dir: Path, data_name: str, continue_: bool = False):
-        self._data_dir = data_dir
-        self._data_name = data_name
+    def __init__(self, target_dir: Path, continue_: bool = False):
         self._continue = continue_
-        self._target_dir = self._data_dir / self._data_name
+        self._target_dir = target_dir
         self._tmp_dir = self._target_dir.with_suffix('.tmp')
         if continue_:
             self._write_dir = self._target_dir
@@ -501,7 +497,7 @@ class _ImageWriter:
 
     def __enter__(self):
         if self._continue:
-            self._data_dir.mkdir(exist_ok=True)
+            self._target_dir.mkdir(exist_ok=True)
         else:
             if self._tmp_dir.exists():
                 shutil.rmtree(self._tmp_dir)
