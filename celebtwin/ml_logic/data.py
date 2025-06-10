@@ -435,7 +435,9 @@ def load_image(path: Path | str, image_size: int, num_channels: int,
 def _image_number(path: Path) -> int:
     # Images in the input data are named like 'Adriana Lima101_3.jpg', where
     # the image number is the part after the underscore.
-    return int(path.stem.split('_')[1])
+    if '_' in path.stem:
+        return int(path.stem.split('_')[1])
+    return int(path.stem)
 
 
 def _iter_image_path(
