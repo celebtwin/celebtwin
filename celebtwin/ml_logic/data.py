@@ -59,16 +59,17 @@ class Dataset(ABC):
 class _FullDataset(ABC):
     """Abstract base class for full datasets that provide images."""
 
+    DATASET_DIR: Path
+
     @abstractmethod
     def iter_images(self, num_classes: int | None, undersample: bool) \
             -> Iterator[Path]:
         """Iterate over images in the dataset."""
         ...
 
-    @abstractmethod
-    def translate_path(self, path: Path) -> Path:
-        """Make a path relative to the target dataset."""
-        ...
+    def relative_path(self, path: Path) -> Path:
+        """Return the relative path of an image in the dataset."""
+        return path.relative_to(self.DATASET_DIR)
 
 
 class ColorMode(str, Enum):
@@ -131,50 +132,70 @@ def load_dataset(params: dict) -> Dataset:
 class _PinsDataset(_FullDataset):
     """The original Pins Face Recognition dataset."""
 
-    FULL_DATASET = RAW_DATA / '105_classes_pins_dataset'
-    FULL_DATA_ZIP = RAW_DATA / 'pins-face-recognition.zip'
+    _ORIGINAL_DIR = RAW_DATA / '105_classes_pins_dataset'
+    _ORIGINAL_ZIP = RAW_DATA / 'pins-face-recognition.zip'
+    # Directory with renamed images, used for training.
+    DATASET_DIR = RAW_DATA / 'rawimages1'
 
     def try_download(self) -> bool:
         """Try to download the dataset."""
-        if self.FULL_DATASET.exists():
+        if self.DATASET_DIR.exists():
             return True
-        if not self.FULL_DATA_ZIP.exists():
+        self._download_and_unzip()
+        self._make_renamed_dataset()
+        shutil.rmtree(self._ORIGINAL_DIR)
+        return True
+
+    def _download_and_unzip(self):
+        self._ORIGINAL_ZIP.parent.mkdir(exist_ok=True, parents=True)
+        if not self._ORIGINAL_ZIP.exists():
             subprocess.run([
                 'curl', '--location', '--continue-at', '-',
-                '--output', str(self.FULL_DATA_ZIP),
+                '--output', str(self._ORIGINAL_ZIP),
                 'https://www.kaggle.com/api/v1/datasets/download/hereisburak/pins-face-recognition'
             ], check=True)
-        subprocess.run(
-            ['unzip', '-q', str(self.FULL_DATA_ZIP)],
-            cwd=RAW_DATA, check=True)
-        return True
+        if not self._ORIGINAL_DIR.exists():
+            subprocess.run(
+                ['unzip', '-q', str(self._ORIGINAL_ZIP)],
+                cwd=RAW_DATA, check=True)
+
+    def _make_renamed_dataset(self):
+        temporary_dir = self.DATASET_DIR.with_suffix('.tmp')
+        if temporary_dir.exists():
+            shutil.rmtree(temporary_dir)
+        temporary_dir.mkdir()  # Fails if the directory already exists.
+        for class_dir in self._ORIGINAL_DIR.iterdir():
+            if not class_dir.is_dir() or class_dir.name.startswith('.'):
+                continue
+            # Directories are named like 'pins_Adriana Lima'.
+            # Some of them are not properly capitalized.
+            class_name = class_dir.name.removeprefix('pins_').title()
+            new_class_dir = temporary_dir / class_name
+            assert not new_class_dir.exists(), \
+                f'Class directory already exists: {new_class_dir}'
+            new_class_dir.mkdir()  # Fails if the directory already exists.
+            for image_path in class_dir.glob('*.jpg'):
+                # Images in the input data are named like 'Adriana
+                # Lima101_3.jpg', the biggest number is four digits long.
+                image_name = f'{int(image_path.stem.split("_")[1]):04}.jpg'
+                new_image_path = new_class_dir / image_name
+                if new_image_path.exists():
+                    raise FileExistsError(
+                        f'File already exists: {new_image_path}')
+                # Faster to hardlink than to copy.
+                new_image_path.hardlink_to(image_path)
+        temporary_dir.rename(self.DATASET_DIR)
 
     def iter_images(self, num_classes: int | None, undersample: bool) \
             -> Iterator[Path]:
         """Iterate over the dataset."""
-        return _iter_image_path(self.FULL_DATASET, num_classes, undersample)
-
-    def translate_path(self, input_path: Path) -> Path:
-        """Translate path from the original naming to the naming we use.
-
-        Returns: Path relative to the dataset directory.
-
-        The original images are named like 'pins_Adriana Lima/Adriana
-        Lima101_3.jpg'. We rename them to 'AdrianaLima/003.jpg'.
-        """
-        class_name = input_path.parent.name
-        assert class_name.startswith('pins_')
-        class_name = class_name.removeprefix('pins_').replace(' ', '')
-        assert input_path.name.endswith('.jpg')
-        number = _image_number(input_path)
-        return Path(class_name) / f"{number:03}.jpg"
+        return _iter_image_path(self.DATASET_DIR, num_classes, undersample)
 
 
 class AlignedDatasetFull(_FullDataset):
     """A dataset that aligns faces in images and saves them to disk."""
 
-    DATASET_NAME = 'alignfull1'
-    DATASET_DIR = RAW_DATA / DATASET_NAME
+    DATASET_DIR = RAW_DATA / 'alignfull2'
 
     def preprocess_all(self) -> None:
         """Process all images, rename directory to dataset_dir and upload."""
@@ -205,10 +226,6 @@ class AlignedDatasetFull(_FullDataset):
                 self.DATASET_DIR, num_classes, undersample):
             yield path
 
-    def translate_path(self, path: Path) -> Path:
-        """Make a path relative to the target dataset."""
-        return path.relative_to(self.DATASET_DIR)
-
 
 class _AlignedDatasetPartial(_FullDataset):
     """A dataset that aligns faces in images.
@@ -216,7 +233,7 @@ class _AlignedDatasetPartial(_FullDataset):
     The dataset is built on the fly from the PinsDataset.
     """
 
-    PARTIAL_NAME = 'alignfull1-part'
+    PARTIAL_NAME = 'alignfull2-part'
     PARTIAL_DIR = RAW_DATA / PARTIAL_NAME
 
     def __init__(self):
@@ -249,11 +266,11 @@ class _AlignedDatasetPartial(_FullDataset):
             input_paths = list(self._pins_dataset.iter_images(
                 num_classes, undersample))
             for input_path in tqdm(input_paths, miniters=0):
-                output_path = self._pins_dataset.translate_path(input_path)
-                if str(output_path) in ignored_files:
+                relative_path = self._pins_dataset.relative_path(input_path)
+                if str(relative_path) in ignored_files:
                     continue
-                if image_writer.exists(output_path):
-                    yield self.PARTIAL_DIR / output_path
+                if image_writer.exists(relative_path):
+                    yield self.PARTIAL_DIR / relative_path
                     continue
                 try:
                     aligned_face = preprocess_face_aligned(input_path)
@@ -261,14 +278,10 @@ class _AlignedDatasetPartial(_FullDataset):
                     print(Fore.RED + str(error) + Style.RESET_ALL)
                     with open(ignored_path, 'a', encoding='utf-8',
                               newline='') as file:
-                        csv.writer(file).writerow([str(output_path)])
+                        csv.writer(file).writerow([str(relative_path)])
                     continue
-                image_writer.write_image(output_path, aligned_face)
-                yield self.PARTIAL_DIR / output_path
-
-    def translate_path(self, path: Path) -> Path:
-        """Make a path relative to the target dataset."""
-        return path.relative_to(self.PARTIAL_DIR)
+                image_writer.write_image(relative_path, aligned_face)
+                yield self.PARTIAL_DIR / relative_path
 
 
 class SimpleDataset(Dataset):
@@ -306,7 +319,7 @@ class SimpleDataset(Dataset):
         self._validation_split = validation_split
         self.class_names = None
 
-    _identifier_version = 'v2'
+    _identifier_version = 'v3'
 
     @property
     def identifier(self) -> str:
@@ -388,11 +401,11 @@ class SimpleDataset(Dataset):
             input_paths = list(base_dataset.iter_images(
                 self._num_classes, self._undersample))
             for input_path in tqdm(input_paths):
-                output_path = base_dataset.translate_path(input_path)
-                if image_writer.exists(output_path):
+                relative_path = base_dataset.relative_path(input_path)
+                if image_writer.exists(relative_path):
                     continue
                 image_tensor = self._load_image(input_path)
-                image_writer.write_image(output_path, image_tensor)
+                image_writer.write_image(relative_path, image_tensor)
         upload_dataset(self._dataset_path())
 
     def _make_base_dataset(self) -> _FullDataset:
@@ -409,7 +422,7 @@ class SimpleDataset(Dataset):
 class AlignedDataset(SimpleDataset):
     """A dataset that aligns faces in images."""
 
-    _identifier_version = 'align3'
+    _identifier_version = 'align4'
 
     def _make_base_dataset(self) -> _FullDataset:
         """Return the base dataset to process."""
@@ -432,16 +445,9 @@ def load_image(path: Path | str, image_size: int, num_channels: int,
         image_data_format(), crop, pad)
 
 
-def _image_number(path: Path) -> int:
-    # Images in the input data are named like 'Adriana Lima101_3.jpg', where
-    # the image number is the part after the underscore.
-    if '_' in path.stem:
-        return int(path.stem.split('_')[1])
-    return int(path.stem)
-
-
 def _iter_image_path(
-        base_dir: Path, num_classes: int | None, undersample: bool) \
+        base_dir: Path, num_classes: int | None = None,
+        undersample: bool = False) \
         -> Iterator[Path]:
     """Iterate over image paths in the dataset."""
     input_class_dirs = list(sorted(
@@ -457,7 +463,7 @@ def _iter_image_path(
             len(list(d.glob(image_glob))) for d in input_class_dirs)
     for input_dir in input_class_dirs:
         image_paths = list(
-            sorted(input_dir.glob(image_glob), key=_image_number))
+            sorted(input_dir.glob(image_glob), key=lambda x: int(x.stem)))
         if sample_size is not None:
             image_paths = image_paths[:sample_size]
         for image_path in image_paths:
