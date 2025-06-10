@@ -6,6 +6,7 @@ complete training and evaluation cycle.
 
 import json
 import time
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -75,6 +76,7 @@ class Experiment:
         return pred, class_name
 
 
+@lru_cache(maxsize=1)
 def load_experiment(metadata_path: Path, model_path: Path) -> Experiment:
     """Load an experiment from the registry."""
     with open(metadata_path, 'r', encoding='utf-8') as file:
