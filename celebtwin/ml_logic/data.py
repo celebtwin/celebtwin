@@ -59,7 +59,7 @@ class Dataset(ABC):
 class _FullDataset(ABC):
     """Abstract base class for full datasets that provide images."""
 
-    DATASET_DIR: Path
+    _dataset_dir: Path
 
     @abstractmethod
     def iter_images(self, num_classes: int | None, undersample: bool) \
@@ -69,7 +69,7 @@ class _FullDataset(ABC):
 
     def relative_path(self, path: Path) -> Path:
         """Return the relative path of an image in the dataset."""
-        return path.relative_to(self.DATASET_DIR)
+        return path.relative_to(self._dataset_dir)
 
 
 class ColorMode(str, Enum):
@@ -132,24 +132,23 @@ def load_dataset(params: dict) -> Dataset:
 class _PinsDataset(_FullDataset):
     """The original Pins Face Recognition dataset."""
 
-    _ORIGINAL_DIR = RAW_DATA / '105_classes_pins_dataset'
-    _ORIGINAL_ZIP = RAW_DATA / 'pins-face-recognition.zip'
-    # Directory with renamed images, used for training.
-    DATASET_DIR = RAW_DATA / 'rawimages1'
+    _original_dir = RAW_DATA / '105_classes_pins_dataset'
+    _original_zip = RAW_DATA / 'pins-face-recognition.zip'
+    _dataset_dir = RAW_DATA / 'rawimages1'
 
     def try_download(self) -> bool:
         """Try to download the dataset."""
-        if self.DATASET_DIR.exists():
+        if self._dataset_dir.exists():
             return True
         self._download_and_unzip()
         self._make_renamed_dataset()
-        shutil.rmtree(self._ORIGINAL_DIR)
+        shutil.rmtree(self._original_dir)
         return True
 
     def _download_and_unzip(self):
-        self._ORIGINAL_ZIP.parent.mkdir(exist_ok=True, parents=True)
-        if not self._ORIGINAL_ZIP.exists():
-            tmp_path = self._ORIGINAL_ZIP.with_suffix('.part')
+        self._original_zip.parent.mkdir(exist_ok=True, parents=True)
+        if not self._original_zip.exists():
+            tmp_path = self._original_zip.with_suffix('.part')
             # Continue downloading if the file is partially downloaded.
             subprocess.run([
                 'curl', '--location', '--continue-at', '-',
@@ -157,18 +156,18 @@ class _PinsDataset(_FullDataset):
                 'https://www.kaggle.com/api/v1/datasets/download/hereisburak/'
                 'pins-face-recognition'
             ], check=True)
-            tmp_path.rename(self._ORIGINAL_ZIP)
-        if not self._ORIGINAL_DIR.exists():
+            tmp_path.rename(self._original_zip)
+        if not self._original_dir.exists():
             subprocess.run(
-                ['unzip', '-q', str(self._ORIGINAL_ZIP)],
-                cwd=RAW_DATA, check=True)
+                ['unzip', '-q', self._original_zip.name],
+                cwd=self._original_zip.parent, check=True)
 
     def _make_renamed_dataset(self):
-        temporary_dir = self.DATASET_DIR.with_suffix('.tmp')
+        temporary_dir = self._dataset_dir.with_suffix('.tmp')
         if temporary_dir.exists():
             shutil.rmtree(temporary_dir)
         temporary_dir.mkdir()  # Fails if the directory already exists.
-        for class_dir in self._ORIGINAL_DIR.iterdir():
+        for class_dir in self._original_dir.iterdir():
             if not class_dir.is_dir() or class_dir.name.startswith('.'):
                 continue
             # Directories are named like 'pins_Adriana Lima'.
@@ -188,46 +187,46 @@ class _PinsDataset(_FullDataset):
                         f'File already exists: {new_image_path}')
                 # Faster to hardlink than to copy.
                 new_image_path.hardlink_to(image_path)
-        temporary_dir.rename(self.DATASET_DIR)
+        temporary_dir.rename(self._dataset_dir)
 
     def iter_images(self, num_classes: int | None, undersample: bool) \
             -> Iterator[Path]:
         """Iterate over the dataset."""
-        return _iter_image_path(self.DATASET_DIR, num_classes, undersample)
+        return _iter_image_path(self._dataset_dir, num_classes, undersample)
 
 
 class AlignedDatasetFull(_FullDataset):
     """A dataset that aligns faces in images and saves them to disk."""
 
-    DATASET_DIR = RAW_DATA / 'alignfull2'
+    _dataset_dir = RAW_DATA / 'alignfull2'
 
     def preprocess_all(self) -> None:
         """Process all images, rename directory to dataset_dir and upload."""
         from celebtwin.ml_logic.registry import upload_dataset
-        if self.DATASET_DIR.exists():
+        if self._dataset_dir.exists():
             raise ValueError(
-                f'Dataset directory already exists: {self.DATASET_DIR}')
+                f'Dataset directory already exists: {self._dataset_dir}')
         partial = _AlignedDatasetPartial()
         for _ in partial.iter_images(None, False):
             pass
-        partial.PARTIAL_DIR.rename(self.DATASET_DIR)
-        upload_dataset(self.DATASET_DIR)
+        partial.rename_dataset_dir(self._dataset_dir)
+        upload_dataset(self._dataset_dir)
 
     def try_download(self) -> bool:
         """Try to download the dataset."""
         from celebtwin.ml_logic.registry import try_download_dataset
-        if self.DATASET_DIR.exists():
+        if self._dataset_dir.exists():
             return True
-        return try_download_dataset(self.DATASET_DIR)
+        return try_download_dataset(self._dataset_dir)
 
     def iter_images(self, num_classes: int | None, undersample: bool) \
             -> Iterator[Path]:
         """Iterate over images in the full dataset directory."""
-        if not self.DATASET_DIR.exists():
+        if not self._dataset_dir.exists():
             raise ValueError(
                 'Dataset does not exist. Use _AlignedDatasetPartial instead.')
         for path in _iter_image_path(
-                self.DATASET_DIR, num_classes, undersample):
+                self._dataset_dir, num_classes, undersample):
             yield path
 
 
@@ -237,8 +236,7 @@ class _AlignedDatasetPartial(_FullDataset):
     The dataset is built on the fly from the PinsDataset.
     """
 
-    PARTIAL_NAME = 'alignfull2-part'
-    PARTIAL_DIR = RAW_DATA / PARTIAL_NAME
+    _dataset_dir = RAW_DATA / 'alignpartial2'
 
     def __init__(self):
         self._pins_dataset = _PinsDataset()
@@ -246,6 +244,9 @@ class _AlignedDatasetPartial(_FullDataset):
     def try_download(self) -> bool:
         """Try to download the dataset."""
         return self._pins_dataset.try_download()
+
+    def rename_dataset_dir(self, new_path: Path) -> None:
+        self._dataset_dir.rename(new_path)
 
     def iter_images(
         self, num_classes: int | None, undersample: bool) \
@@ -259,13 +260,13 @@ class _AlignedDatasetPartial(_FullDataset):
         Yields:
             Path to the aligned face image
         """
-        self.PARTIAL_DIR.mkdir(exist_ok=True)
+        self._dataset_dir.mkdir(exist_ok=True)
         ignored_files: set[str] = set()
-        ignored_path = self.PARTIAL_DIR / 'ignore.csv'
+        ignored_path = self._dataset_dir / 'ignore.csv'
         if ignored_path.exists():
             with open(ignored_path, 'r', encoding='utf-8', newline='') as file:
                 ignored_files = {row[0] for row in csv.reader(file)}
-        with _ImageWriter(RAW_DATA, self.PARTIAL_NAME, continue_=True) \
+        with _ImageWriter(RAW_DATA, self._dataset_dir.name, continue_=True) \
                 as image_writer:
             input_paths = list(self._pins_dataset.iter_images(
                 num_classes, undersample))
@@ -274,7 +275,7 @@ class _AlignedDatasetPartial(_FullDataset):
                 if str(relative_path) in ignored_files:
                     continue
                 if image_writer.exists(relative_path):
-                    yield self.PARTIAL_DIR / relative_path
+                    yield self._dataset_dir / relative_path
                     continue
                 try:
                     aligned_face = preprocess_face_aligned(input_path)
@@ -285,7 +286,7 @@ class _AlignedDatasetPartial(_FullDataset):
                         csv.writer(file).writerow([str(relative_path)])
                     continue
                 image_writer.write_image(relative_path, aligned_face)
-                yield self.PARTIAL_DIR / relative_path
+                yield self._dataset_dir / relative_path
 
 
 class SimpleDataset(Dataset):
