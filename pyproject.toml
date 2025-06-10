@@ -1,0 +1,56 @@
+[project]
+name = "celebtwin"
+version = "0.1"
+description = "Who is your celebrity twin?"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "AGPL-3.0-or-later"}
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Internet",
+    "Topic :: Multimedia",
+    "Topic :: Multimedia :: Graphics",
+]
+authors = [
+    {name = "Cyrille Prudhomme", email = "cyrille.prudhomme@gmail.com"},
+    {name = "David Allouche", email = "david@allouche.net"},
+    {name = "Timothée Farines", email = "timothee.farines@gmail.com"},
+    {name = "Léonce Nzamba", email = "leonce.nzamba@gmail.com"},
+    ]
+dependencies = [
+  "click",
+  "colorama",
+  "decorator",
+  "deepface",
+  "fastapi",
+  "google-cloud-storage",
+  "keras",
+  "mtcnn",
+  "numpy",
+  "opencv-python",
+  "python-multipart",
+  "tensorflow-cpu; sys_platform != 'darwin'",  # Use CPU version on non-Mac systems
+  "tensorflow-metal; sys_platform == 'darwin' and 'ARM' in platform_version", # GPU acceleration for Mac M-chips
+  "tensorflow",
+  "tf_keras",
+  "tqdm",
+  "uvicorn",
+]
+[project.urls]
+Homepage = "https://github.com/celebtwin/celebtwin"
+Repository = "https://github.com/celebtwin/celebtwin.git"
+[tool.setuptools]
+packages = [
+  "celebtwin",
+  "celebtwin.api",
+  "celebtwin.interface",
+  "celebtwin.ml_logic",
+]

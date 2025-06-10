@@ -1,7 +1,8 @@
 __pycache__
 .*
 *.ipynb
-/raw_data
-/training_outputs
+/*.egg-info
 /docs
 /download
+/raw_data
+/training_outputs
