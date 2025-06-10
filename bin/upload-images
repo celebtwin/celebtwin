@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+
+from pathlib import Path
+
+import click
+from google.cloud import storage  # type: ignore
+from tqdm import tqdm
+
+from celebtwin.params import BUCKET_NAME
+
+
+@click.command()
+@click.argument(
+    'image_dir', type=click.Path(exists=True, file_okay=False, path_type=Path))
+def upload_images(image_dir: Path):
+    """Upload images to the public folder in the GCS bucket."""
+    client = storage.Client()
+    bucket = client.bucket(BUCKET_NAME)
+    for full_path in tqdm(list(sorted(image_dir.glob('*/*.jpg')))):
+        path = full_path.relative_to(image_dir)
+        url_path = (
+            path.parent.name.lower().replace(' ', '-').replace('.', '')
+            + '/' + path.name)
+        blob = bucket.blob(f'public/img/{url_path}')
+        blob.upload_from_filename(full_path)
+
+
+if __name__ == '__main__':
+    upload_images()
