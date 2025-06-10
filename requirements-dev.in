@@ -9,4 +9,5 @@ ruff
 scikit-learn
 seaborn
 types-colorama
+types-decorator
 types-tensorflow

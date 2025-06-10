@@ -1,6 +1,7 @@
 # Common dependencies for production and development environments
 click
 colorama
+decorator
 deepface
 fastapi
 google-cloud-storage
