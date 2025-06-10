@@ -263,7 +263,7 @@ class VGGface(Model):
                 layers.Dense(256, activation="relu"),
                 layers.Dropout(0.05),
                 layers.BatchNormalization(),
-                layers.Dense(128, activation=None),
+                layers.Dense(class_nb, activation=None),
                 layers.Lambda(lambda x: tf.math.l2_normalize(x, axis=1))
                 ], name="Encoder_Model")
 
