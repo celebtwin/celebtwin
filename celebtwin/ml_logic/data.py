@@ -149,11 +149,15 @@ class _PinsDataset(_FullDataset):
     def _download_and_unzip(self):
         self._ORIGINAL_ZIP.parent.mkdir(exist_ok=True, parents=True)
         if not self._ORIGINAL_ZIP.exists():
+            tmp_path = self._ORIGINAL_ZIP.with_suffix('.part')
+            # Continue downloading if the file is partially downloaded.
             subprocess.run([
                 'curl', '--location', '--continue-at', '-',
-                '--output', str(self._ORIGINAL_ZIP),
-                'https://www.kaggle.com/api/v1/datasets/download/hereisburak/pins-face-recognition'
+                '--output', str(tmp_path),
+                'https://www.kaggle.com/api/v1/datasets/download/hereisburak/'
+                'pins-face-recognition'
             ], check=True)
+            tmp_path.rename(self._ORIGINAL_ZIP)
         if not self._ORIGINAL_DIR.exists():
             subprocess.run(
                 ['unzip', '-q', str(self._ORIGINAL_ZIP)],
