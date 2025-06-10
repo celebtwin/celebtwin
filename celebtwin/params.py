@@ -8,5 +8,3 @@ MODEL_TARGET = "gcs"  # "local" ou "gcs"
 LOCAL_DATA_PATH = os.path.join(
     os.path.expanduser('~'), ".lewagon", "mlops", "data")
 LOCAL_REGISTRY_PATH = "training_outputs"
-
-LOCAL_DOWNLOAD_IMAGES_PATH = "./download"
