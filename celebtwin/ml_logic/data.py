@@ -454,8 +454,6 @@ def _iter_image_path(
         sample_size = min(
             len(list(d.glob(image_glob))) for d in input_class_dirs)
     for input_dir in input_class_dirs:
-        assert input_dir.name.startswith('pins_'), \
-            f'unexpected directory: {input_dir.name}'
         image_paths = list(
             sorted(input_dir.glob(image_glob), key=_image_number))
         if sample_size is not None:
