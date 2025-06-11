@@ -62,7 +62,8 @@ class _FullDataset(ABC):
     _dataset_dir: Path
 
     @abstractmethod
-    def iter_images(self, num_classes: int | None, undersample: bool) \
+    def iter_images(
+            self, num_classes: int | None = None, undersample: bool = False) \
             -> Iterator[Path]:
         """Iterate over images in the dataset."""
         ...
@@ -189,7 +190,8 @@ class PinsDataset(_FullDataset):
                 new_image_path.hardlink_to(image_path)
         temporary_dir.rename(self._dataset_dir)
 
-    def iter_images(self, num_classes: int | None, undersample: bool) \
+    def iter_images(
+            self, num_classes: int | None = None, undersample: bool = False) \
             -> Iterator[Path]:
         """Iterate over the dataset."""
         return _iter_image_path(self._dataset_dir, num_classes, undersample)
@@ -220,7 +222,8 @@ class AlignedDatasetFull(_FullDataset):
             return True
         return try_download_dataset(self._dataset_dir)
 
-    def iter_images(self, num_classes: int | None, undersample: bool) \
+    def iter_images(
+            self, num_classes: int | None = None, undersample: bool = False) \
             -> Iterator[Path]:
         """Iterate over images in the full dataset directory."""
         if not self._dataset_dir.exists():
