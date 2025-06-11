@@ -1,4 +1,5 @@
 import csv
+import io
 import shutil
 import subprocess
 from abc import ABC, abstractmethod
@@ -60,6 +61,11 @@ class _FullDataset(ABC):
     """Abstract base class for full datasets that provide images."""
 
     _dataset_dir: Path
+
+    @abstractmethod
+    def try_download(self) -> bool:
+        """Try to download the dataset."""
+        ...
 
     @abstractmethod
     def iter_images(
@@ -253,7 +259,7 @@ class _AlignedDatasetPartial(_FullDataset):
         self._dataset_dir.rename(new_path)
 
     def iter_images(
-        self, num_classes: int | None, undersample: bool) \
+        self, num_classes: int | None = None, undersample: bool = False) \
             -> Iterator[Path]:
         """Process images from PinsDataset and yield paths to aligned faces.
 

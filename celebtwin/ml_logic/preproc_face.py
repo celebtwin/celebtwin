@@ -12,8 +12,12 @@ mtcnn_detector = MTCNN()
 class NoFaceDetectedError(Exception):
     """Raised when face detection failed during image preprocessing."""
 
-    def __init__(self, path: Path):
-        super().__init__(f'❌ No face detected: {path}')
+    def __init__(self, path: Path | None = None):
+        if path is None:
+            message = '❌ No face detected'
+        else:
+            message = f'❌ No face detected: {path}'
+        super().__init__(message)
 
 
 def preprocess_face_aligned(path: Path) -> np.ndarray:

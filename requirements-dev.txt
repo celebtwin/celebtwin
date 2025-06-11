@@ -179,8 +179,12 @@ types-decorator==5.2.0.20250324
 types-protobuf==6.30.2.20250516
     # via types-tensorflow
 types-requests==2.32.0.20250602
-    # via types-tensorflow
+    # via
+    #   types-tensorflow
+    #   types-tqdm
 types-tensorflow==2.18.0.20250516
+    # via -r requirements-dev.in
+types-tqdm==4.67.0.20250516
     # via -r requirements-dev.in
 typing-extensions==4.13.2
     # via
