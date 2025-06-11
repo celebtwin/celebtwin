@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 
 import click
 from colorama import Fore, Style
@@ -25,7 +26,8 @@ def cli():
 @click.option(
     '-p', '--patience', type=int, default=10,
     help='Stop after this many epochs without improvement, defaults to 10.')
-def train(dataset, model, classes, learning_rate, patience) -> None:
+def train(dataset: str, model: str, classes: int, learning_rate: float,
+          patience: int) -> None:
     """Train on a local dataset.
 
     Save validation metrics and the trained model.
@@ -87,7 +89,7 @@ def batch_align() -> None:
 
 @cli.command()
 @click.argument('image_path', type=click.Path(exists=True))
-def pred(image_path) -> None:
+def pred(image_path: Path) -> None:
     """Predict the class of a single image."""
     print(Fore.MAGENTA + "⭐️ Predicting" + Style.RESET_ALL)
     from celebtwin.ml_logic.preproc_face import NoFaceDetectedError
@@ -109,7 +111,54 @@ def pred(image_path) -> None:
           + Style.RESET_ALL)
 
 
-if __name__ == '__main__':
+detector_choice = click.Choice([
+    'opencv', 'retinaface', 'mtcnn', 'ssd', 'dlib', 'mediapipe', 'yolov8',
+    'yolov11n', 'yolov11s', 'yolov11m', 'centerface', 'builtin'])
+annoy_align_option = click.option(
+    "-a", "--align", type=detector_choice, default="builtin",
+    help="""Detector backend for face alignment, defaults to built-in.""")
+
+embedding_choice = click.Choice([
+    "VGG-Face", "Facenet", "Facenet512", "OpenFace", "DeepFace", "DeepID",
+    "Dlib", "ArcFace", "SFace", "GhostFaceNet"])
+annoy_model_option = click.option(
+    "-m", "--model", type=embedding_choice, default="Facenet",
+    help="Model used to generate embeddings, defaults to Facenet.")
+
+@cli.command()
+@annoy_align_option
+@annoy_model_option
+def build_annoy(align: str, model: str) -> None:
+    """Build an Annoy index for the dataset."""
+    if align == "builtin":
+        align = "skip"
+    print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
+    from celebtwin.ml_logic.annoy import build_annoy_index
+    print(Fore.MAGENTA + "⭐️ Building Annoy index" + Style.RESET_ALL)
+    build_annoy_index(align, model)
+
+@cli.command()
+@annoy_align_option
+@annoy_model_option
+@click.argument("image_path", type=click.Path(exists=True))
+def pred_annoy(image_path: Path, align: str, model: str) -> None:
+    """Predict the class of a single image using embedding proximity."""
+    if align == "builtin":
+        align = "skip"
+    print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
+    from celebtwin.ml_logic.annoy import AnnoyReader
+    from celebtwin.ml_logic.preproc_face import NoFaceDetectedError
+    print(Fore.MAGENTA + "⭐️ Predicting" + Style.RESET_ALL)
+    with AnnoyReader(align, model) as reader:
+        try:
+            class_, name = reader.find_image(image_path)
+        except NoFaceDetectedError as error:
+            print(Fore.RED + str(error) + Style.RESET_ALL)
+            sys.exit(1)
+    print(Fore.GREEN + f"Closest image: {class_}/{name}" + Style.RESET_ALL)
+
+
+if __name__ == "__main__":
     try:
         cli()
     except Exception:

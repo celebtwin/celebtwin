@@ -11,3 +11,4 @@ seaborn
 types-colorama
 types-decorator
 types-tensorflow
+types-tqdm

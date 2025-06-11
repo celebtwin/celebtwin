@@ -1,4 +1,5 @@
 import csv
+import io
 import shutil
 import subprocess
 from abc import ABC, abstractmethod
@@ -62,7 +63,13 @@ class _FullDataset(ABC):
     _dataset_dir: Path
 
     @abstractmethod
-    def iter_images(self, num_classes: int | None, undersample: bool) \
+    def try_download(self) -> bool:
+        """Try to download the dataset."""
+        ...
+
+    @abstractmethod
+    def iter_images(
+            self, num_classes: int | None = None, undersample: bool = False) \
             -> Iterator[Path]:
         """Iterate over images in the dataset."""
         ...
@@ -129,7 +136,7 @@ def load_dataset(params: dict) -> Dataset:
     return dataset
 
 
-class _PinsDataset(_FullDataset):
+class PinsDataset(_FullDataset):
     """The original Pins Face Recognition dataset."""
 
     _original_dir = RAW_DATA / '105_classes_pins_dataset'
@@ -189,7 +196,8 @@ class _PinsDataset(_FullDataset):
                 new_image_path.hardlink_to(image_path)
         temporary_dir.rename(self._dataset_dir)
 
-    def iter_images(self, num_classes: int | None, undersample: bool) \
+    def iter_images(
+            self, num_classes: int | None = None, undersample: bool = False) \
             -> Iterator[Path]:
         """Iterate over the dataset."""
         return _iter_image_path(self._dataset_dir, num_classes, undersample)
@@ -220,7 +228,8 @@ class AlignedDatasetFull(_FullDataset):
             return True
         return try_download_dataset(self._dataset_dir)
 
-    def iter_images(self, num_classes: int | None, undersample: bool) \
+    def iter_images(
+            self, num_classes: int | None = None, undersample: bool = False) \
             -> Iterator[Path]:
         """Iterate over images in the full dataset directory."""
         if not self._dataset_dir.exists():
@@ -240,7 +249,7 @@ class _AlignedDatasetPartial(_FullDataset):
     _dataset_dir = RAW_DATA / 'alignpartial2'
 
     def __init__(self):
-        self._pins_dataset = _PinsDataset()
+        self._pins_dataset = PinsDataset()
 
     def try_download(self) -> bool:
         """Try to download the dataset."""
@@ -250,7 +259,7 @@ class _AlignedDatasetPartial(_FullDataset):
         self._dataset_dir.rename(new_path)
 
     def iter_images(
-        self, num_classes: int | None, undersample: bool) \
+        self, num_classes: int | None = None, undersample: bool = False) \
             -> Iterator[Path]:
         """Process images from PinsDataset and yield paths to aligned faces.
 
@@ -390,7 +399,7 @@ class SimpleDataset(Dataset):
 
     def _full_dataset(self) -> _FullDataset:
         """Return the full dataset to process."""
-        return _PinsDataset()
+        return PinsDataset()
 
     def _build_dataset(self) -> None:
         """Build a dataset directory and zip file.
@@ -416,7 +425,7 @@ class SimpleDataset(Dataset):
 
     def _make_base_dataset(self) -> _FullDataset:
         """Return the base dataset to process."""
-        dataset = _PinsDataset()
+        dataset = PinsDataset()
         downloaded = dataset.try_download()
         assert downloaded
         return dataset
