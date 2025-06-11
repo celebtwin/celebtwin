@@ -129,7 +129,7 @@ def load_dataset(params: dict) -> Dataset:
     return dataset
 
 
-class _PinsDataset(_FullDataset):
+class PinsDataset(_FullDataset):
     """The original Pins Face Recognition dataset."""
 
     _original_dir = RAW_DATA / '105_classes_pins_dataset'
@@ -240,7 +240,7 @@ class _AlignedDatasetPartial(_FullDataset):
     _dataset_dir = RAW_DATA / 'alignpartial2'
 
     def __init__(self):
-        self._pins_dataset = _PinsDataset()
+        self._pins_dataset = PinsDataset()
 
     def try_download(self) -> bool:
         """Try to download the dataset."""
@@ -390,7 +390,7 @@ class SimpleDataset(Dataset):
 
     def _full_dataset(self) -> _FullDataset:
         """Return the full dataset to process."""
-        return _PinsDataset()
+        return PinsDataset()
 
     def _build_dataset(self) -> None:
         """Build a dataset directory and zip file.
@@ -416,7 +416,7 @@ class SimpleDataset(Dataset):
 
     def _make_base_dataset(self) -> _FullDataset:
         """Return the base dataset to process."""
-        dataset = _PinsDataset()
+        dataset = PinsDataset()
         downloaded = dataset.try_download()
         assert downloaded
         return dataset
