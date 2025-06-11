@@ -95,7 +95,7 @@ def load_model(params: dict, keras_path: str | Path) -> Model:
     class_map = {
         'SimpleLeNetModel': SimpleLeNetModel,
         'WeekendModel': WeekendModel,
-        'VGGface' : VGGface}
+        'Facenet' : Facenet}
     assert params['model_class'] in class_map, \
         f"Unexpected dataset class: {params['model_class']}"
     model = class_map[params['model_class']]()
@@ -219,7 +219,7 @@ class WeekendModel(Model):
             metrics=['accuracy'])
         print("✅ Model compiled")
 
-class VGGface(Model):
+class Facenet(Model):
     """A more advanced model for image classification.
 
     This model is a VGG-like architecture.
@@ -229,7 +229,7 @@ class VGGface(Model):
     def identifier(self) -> str:
         """Unique identifier for the model."""
         return '-'.join([
-            "v1VGGface",
+            "v1facenet",
             f"r{self._learning_rate}",
             f"p{self._patience}"])
 
@@ -263,8 +263,10 @@ class VGGface(Model):
                 layers.Dense(256, activation="relu"),
                 layers.Dropout(0.05),
                 layers.BatchNormalization(),
-                layers.Dense(class_nb, activation=None),
-                layers.Lambda(lambda x: tf.math.l2_normalize(x, axis=1))
+                layers.Dense(128, activation=None),
+                #layers.Lambda(lambda x: tf.math.l2_normalize(x, axis=1)) #super pour embedded, pas pour classifier
+                # Classification Layer: n outputs corresponding to n celebrities
+                layers.Dense(class_nb, activation='softmax')
                 ], name="Encoder_Model")
 
             return encoder_model

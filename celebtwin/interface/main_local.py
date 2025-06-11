@@ -14,7 +14,7 @@ def cli():
     '-d', '--dataset', type=click.Choice(['aligned', 'simple']), default='simple',
     help='Dataset preprocessing, defaults to simple.')
 @click.option(
-    '-m', '--model', type=click.Choice(['simple', 'weekend', 'vggface']), default='simple',
+    '-m', '--model', type=click.Choice(['simple', 'weekend', 'facenet']), default='simple',
     help='Model to train, defaults to simple.')
 @click.option(
     '-c', '--classes', type=int,
@@ -34,7 +34,7 @@ def train(dataset, model, classes, learning_rate, patience) -> None:
     from celebtwin.ml_logic.data import (
         AlignedDataset, ColorMode, ResizeMode, SimpleDataset)
     from celebtwin.ml_logic.experiment import Experiment
-    from celebtwin.ml_logic.model import SimpleLeNetModel, WeekendModel, VGGface
+    from celebtwin.ml_logic.model import SimpleLeNetModel, WeekendModel, Facenet
     print(Fore.MAGENTA + "⭐️ Training" + Style.RESET_ALL)
 
     image_size = 300 #WARNING CP. merite un param cli ?
@@ -54,13 +54,13 @@ def train(dataset, model, classes, learning_rate, patience) -> None:
         validation_split=validation_split)
 
     # Annoying code needed to avoid type errors when building the model.
-    model_instance: SimpleLeNetModel | WeekendModel | VGGface
+    model_instance: SimpleLeNetModel | WeekendModel | Facenet
     if model == 'simple':
         model_instance = SimpleLeNetModel()
     elif model == 'weekend':
         model_instance = WeekendModel()
-    elif model == 'vggface':
-        model_instance = VGGface()
+    elif model == 'facenet':
+        model_instance = Facenet()
     else:
         raise AssertionError(f"Invalid model: {model}")
 
