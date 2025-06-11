@@ -68,8 +68,8 @@ requirements: pip-compile
 .PHONY: pip-compile
 pip-compile: requirements.txt requirements-dev.txt
 
-requirements.txt: requirements.in
-	pip-compile --quiet --strip-extras requirements.in
+requirements.txt: pyproject.toml
+	pip-compile --quiet --strip-extras pyproject.toml
 
 requirements-dev.txt: requirements-dev.in requirements.txt
 	pip-compile --quiet --strip-extras --constraint=requirements.txt \
