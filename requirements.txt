@@ -11,6 +11,8 @@ absl-py==2.3.0
     #   tensorflow
 annotated-types==0.7.0
     # via pydantic
+annoy==1.17.3
+    # via celebtwin (pyproject.toml)
 anyio==4.9.0
     # via starlette
 astunparse==1.6.3

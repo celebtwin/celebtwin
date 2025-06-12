@@ -26,6 +26,7 @@ authors = [
     {name = "Léonce Nzamba", email = "leonce.nzamba@gmail.com"},
     ]
 dependencies = [
+  "annoy",
   "click",
   "colorama",
   "decorator",
