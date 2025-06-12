@@ -26,12 +26,12 @@ def preprocess_face_aligned(path: Path) -> np.ndarray:
     The image is cropped to include only the face. Resizing should be done by the caller.
     """
     # MTCNN requires a RGB image. Apply grayscale conversion later.
-    print(f"Decoding image {path}...")
+    print(f"Decoding image {path}...", flush=True)
     image = tf.image.decode_image(
         tf.io.read_file(str(path)),
         channels=3, expand_animations=False)
 
-    print("Detecting faces...")
+    print("Detecting faces...", flush=True)
     detected_faces = mtcnn_detector.detect_faces(image)
     if not detected_faces:
         raise NoFaceDetectedError(path)
@@ -51,20 +51,20 @@ def preprocess_face_aligned(path: Path) -> np.ndarray:
         (left_eye[0] + right_eye[0]) / 2,
         (left_eye[1] + right_eye[1]) / 2)
 
-    print("Rotating image...")
+    print("Rotating image...", flush=True)
     rotation_matrix = cv2.getRotationMatrix2D(eyes_center, angle, scale=1.0)
     aligned_image = cv2.warpAffine(
         image.numpy(), rotation_matrix, (image.shape[1], image.shape[0]))
 
     # Detect face again after rotation to get the best cropping box.
-    print("Detecting faces again...")
+    print("Detecting faces again...", flush=True)
     detected_faces = mtcnn_detector.detect_faces(aligned_image)
     if not detected_faces:
         raise NoFaceDetectedError(path)
     face = detected_faces[0]
 
     # Crop the face from the aligned image.
-    print("Cropping face...")
+    print("Cropping face...", flush=True)
     x, y, w, h = face['box']
     # x, y = max(x, 0), max(y, 0)
     cropped_image = aligned_image[y:y + h, x:x + w]

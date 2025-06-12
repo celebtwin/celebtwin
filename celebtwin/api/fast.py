@@ -52,7 +52,7 @@ def predict(file: UploadFile, model: str | None = None):
 
 @app.post("/predict-annoy/")
 def predict_annoy(file: UploadFile):
-    print("Received request for Annoy prediction")
+    print("Received request for Annoy prediction", flush=True)
     with NamedTemporaryFile(delete=False) as temp_file:
         temp_file.write(file.file.read())
         reader = load_annoy()
