@@ -119,7 +119,7 @@ image-deploy:
 	  --project=$(PROJECT) \
 		--region=$(REGION) \
 		--image=$(REGION)-docker.pkg.dev/$(PROJECT)/$(REPO)/$(IMAGE) \
-		--memory=1G \
+		--memory=1500M \
 		--allow-unauthenticated
 
 .PHONY: ssh
