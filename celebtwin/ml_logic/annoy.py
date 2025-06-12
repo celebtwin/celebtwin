@@ -119,6 +119,7 @@ class AnnoyReader:
         """
         if self.detector == "skip":
             # If the detector is "skip" use our internal face detection.
+            print("Aligning face...")
             rgb_face = preprocess_face_aligned(path)
             image_data = rgb_face[..., ::-1]  # Convert RGB to BGR
             print("Representing face...")
