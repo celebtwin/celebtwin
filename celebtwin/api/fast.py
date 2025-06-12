@@ -58,9 +58,11 @@ def predict_annoy(file: UploadFile):
         try:
             class_, name = reader.find_image(Path(temp_file.name))
         except NoFaceDetectedError:
-            return {"error": "NoFaceDetectedError",
-                    "message": "No face detected in the image"}
-        return {"class": class_, "name": name}
+            return {
+                "status": "error",
+                "error": "NoFaceDetectedError",
+                "message": "No face detected in the image"}
+        return {"status": "ok", "class": class_, "name": name}
 
 
 @cache
