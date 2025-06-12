@@ -109,6 +109,7 @@ class AnnoyReader:
         assert self.metadata is not None
         print("Finding vector in index...", flush=True)
         neighbors = self.index.get_nns_by_vector(vector, 1)
+        print("Vector search completed", flush=True)
         assert len(neighbors) == 1
         return self.metadata[neighbors[0]]
 

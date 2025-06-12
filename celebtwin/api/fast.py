@@ -63,6 +63,8 @@ def predict_annoy(file: UploadFile):
                 "status": "error",
                 "error": "NoFaceDetectedError",
                 "message": "No face detected in the image"}
+        finally:
+            print("Request for Annoy prediction completed", flush=True)
         return {"status": "ok", "class": class_, "name": name}
 
 
@@ -78,7 +80,7 @@ def load_annoy():
 @app.on_event("startup")
 def preload_annoy():
     model = "Facenet"
-    print("Preloading model {model}...")
+    print(f"Preloading model {model}...")
     from deepface.modules.modeling import build_model
     build_model(task="facial_recognition", model_name=model)
     load_annoy()
