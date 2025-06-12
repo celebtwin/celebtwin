@@ -26,7 +26,7 @@ authors = [
     {name = "Léonce Nzamba", email = "leonce.nzamba@gmail.com"},
     ]
 dependencies = [
-  "annoy",
+  "annoy==1.17.3",  # Update Dockerfile when updating this version.
   "click",
   "colorama",
   "decorator",

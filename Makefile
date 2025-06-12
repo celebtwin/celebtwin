@@ -70,8 +70,6 @@ pip-compile: requirements.txt requirements-dev.txt
 
 requirements.txt: pyproject.toml
 	pip-compile --quiet --strip-extras pyproject.toml
-	sed -ie '/^annoy==/ s/$$/ --global-option=-DNO_MANUAL_VECTORIZATION/' \
-	requirements.txt
 
 requirements-dev.txt: requirements-dev.in requirements.txt
 	pip-compile --quiet --strip-extras --constraint=requirements.txt \
