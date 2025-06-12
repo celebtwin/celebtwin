@@ -12,4 +12,4 @@ COPY celebtwin /app/celebtwin/
 COPY training_outputs/annoy/skip-Facenet-Facenet2018-100-euclidean \
 /app/training_outputs/annoy/skip-Facenet-Facenet2018-100-euclidean
 
-CMD uvicorn --host 0.0.0.0 --port $PORT celebtwin.api.fast:app
+CMD ["sh", "-c", "exec uvicorn --host 0.0.0.0 --port $PORT celebtwin.api.fast:app"]
