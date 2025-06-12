@@ -42,9 +42,9 @@ reset_local_files:
 	rm -rf ${ML_DIR}
 	mkdir -p ${ML_DIR}
 
-.PHONY: cleans
+.PHONY: clean
 clean:
-	rm -fr **/__pycache__ **/*.pyc
+	rm -fr **/__pycache__ **/*.pyc dockerbuild *.egg-info
 
 .PHONY: run_api
 run_api:
@@ -79,8 +79,12 @@ requirements-dev.txt: requirements-dev.in requirements.txt
 IMAGE=celebtwin
 
 .PHONY: image
-image:
+image: dockerbuild/.deepface/weights/facenet_weights.h5
 	docker build -t $(IMAGE) .
+
+dockerbuild/.deepface/weights/facenet_weights.h5:
+	mkdir -p $(dir $@)
+	curl --location --remove-on-error --output $@ https://github.com/serengil/deepface_models/releases/download/v1.0/facenet_weights.h5
 
 .PHONY: image-run
 image-run:
