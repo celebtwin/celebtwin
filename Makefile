@@ -84,7 +84,8 @@ image: dockerbuild/.deepface/weights/facenet_weights.h5
 
 dockerbuild/.deepface/weights/facenet_weights.h5:
 	mkdir -p $(dir $@)
-	curl --location --remove-on-error --output $@ https://github.com/serengil/deepface_models/releases/download/v1.0/facenet_weights.h5
+	curl --location --output $@.tmp https://github.com/serengil/deepface_models/releases/download/v1.0/facenet_weights.h5
+	mv $@.tmp $@
 
 .PHONY: image-run
 image-run:
