@@ -107,7 +107,6 @@ class AnnoyReader:
         """Return the class and name of the entry closest to the vector."""
         assert self.index is not None
         assert self.metadata is not None
-        print("Finding vector in index...")
         neighbors = self.index.get_nns_by_vector(vector, 1)
         assert len(neighbors) == 1
         return self.metadata[neighbors[0]]
@@ -119,10 +118,8 @@ class AnnoyReader:
         """
         if self.detector == "skip":
             # If the detector is "skip" use our internal face detection.
-            print("Aligning face...")
             rgb_face = preprocess_face_aligned(path)
             image_data = rgb_face[..., ::-1]  # Convert RGB to BGR
-            print("Representing face...")
             vector = self._represent(image_data)
         else:
             vector = self._represent(str(path))
