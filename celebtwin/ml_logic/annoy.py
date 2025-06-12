@@ -1,6 +1,6 @@
 """Integration with Deepface and Annoy for face recognition."""
-
 import csv
+import errno
 import pickle
 import random
 from itertools import groupby
@@ -20,9 +20,9 @@ from celebtwin.params import LOCAL_REGISTRY_PATH
 annoy_dir = Path(LOCAL_REGISTRY_PATH) / "annoy"
 deepface_dir = Path(LOCAL_REGISTRY_PATH) / "deepface"
 
-validation_split = 0.2
+validation_split = 0
 annoy_metric = 'euclidean'
-annoy_trees = 10
+annoy_trees = 100
 
 
 annoy_name = 'index.ann'
@@ -69,25 +69,39 @@ class AnnoyReader:
         normalization = normalization_of[model]
         identifier = annoy_identifier(detector, model, normalization)
         self.dimension = embedding_size_of[model]
-        self.index_path = annoy_dir / identifier / annoy_name
-        self.csv_path = annoy_dir / identifier / metadata_name
+        self.index_dir = annoy_dir / identifier
+        self.index_path = self.index_dir / annoy_name
+        self.csv_path = self.index_dir / metadata_name
         self.index = None
         self.metadata = None
 
-    def __enter__(self):
+    def load(self) -> None:
         self.index = AnnoyIndex(self.dimension, annoy_metric)  # type: ignore
+        assert self.index is not None
+        print(f"Loading index from {self.index_path}")
         self.index.load(str(self.index_path))
-        with open(self.csv_path, 'rt', encoding='utf-8') as csv_file:
+        print(f"Loading metadata from {self.csv_path}")
+        csv_file = open(self.csv_path, 'rt', encoding='utf-8')
+        with csv_file:
             self.metadata = metadata = {}
             for item, class_, name in csv.reader(csv_file):
                 assert item not in metadata, \
                     f"Duplicate item {item} in metadata"
                 metadata[int(item)] = (class_, name)
+
+    def close(self) -> None:
+        if self.index is not None:
+            self.index.unload()
+            self.index = None
+        if self.metadata is not None:
+            self.metadata = None
+
+    def __enter__(self):
+        self.load()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.index is not None:
-            self.index.unload()
+        self.close()
 
     def find_vector(self, vector: list[float]) -> tuple[str, str]:
         """Return the class and name of the entry closest to the vector."""
@@ -147,6 +161,7 @@ class AnnoyIndexBuilder:
         self._fill_deepface_cache()
         self._build_annoy_index()
         self._report_accuracy()
+        self._report_build()
 
     def _build_path_lists(self) -> None:
         if self.detector == "skip":
@@ -243,9 +258,8 @@ class AnnoyIndexBuilder:
     def _report_accuracy(self) -> None:
         """Report the accuracy of the Annoy index on the validation set."""
         if not self.validation_split:
-            total_count = 0
-        else:
-            total_count = len(self.validation_set)
+            return
+        total_count = len(self.validation_set)
         detected_count = 0
         correct_count = 0
         with AnnoyReader(self.detector, self.model) as annoy_reader:
@@ -264,7 +278,12 @@ class AnnoyIndexBuilder:
             print(
                 f"Classification accuracy: {correct_count / total_count:.2%}")
 
-
+    def _report_build(self) -> None:
+        """Report if the index is ready for deployment."""
+        if self.validation_split:
+            return
+        reader = AnnoyReader(self.detector, self.model)
+        print(f"Index ready for deployment: {reader.index_dir}")
 
 
 class DeepfaceCache:

@@ -82,6 +82,10 @@ IMAGE=celebtwin
 image:
 	docker build -t $(IMAGE) .
 
+.PHONY: image-run
+image-run:
+	docker run -e PORT=8000 -p 8000:8000 $(IMAGE)
+
 .PHONY: image-prod
 image-prod:
 	docker build --platform=linux/amd64 -t $(IMAGE) .

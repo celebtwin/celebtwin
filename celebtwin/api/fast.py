@@ -1,4 +1,5 @@
 # from tempfile import SpooledTemporaryFile
+from functools import cache
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
@@ -7,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from celebtwin.ml_logic.preproc_face import NoFaceDetectedError
 from celebtwin.ml_logic.registry import load_latest_experiment
+from celebtwin.ml_logic.annoy import AnnoyReader
 
 app = FastAPI()
 # app.state.model = load_model()
@@ -46,6 +48,33 @@ def predict(file: UploadFile, model: str | None = None):
         "probas": pred.tolist(),
         "classes": experiment._dataset.class_names
     }
+
+
+@app.post("/predict-annoy/")
+def predict_annoy(file: UploadFile):
+    with NamedTemporaryFile(delete=False) as temp_file:
+        temp_file.write(file.file.read())
+        reader = load_annoy()
+        try:
+            class_, name = reader.find_image(Path(temp_file.name))
+        except NoFaceDetectedError:
+            return {"error": "NoFaceDetectedError",
+                    "message": "No face detected in the image"}
+        return {"class": class_, "name": name}
+
+
+@cache
+def load_annoy():
+    # Load the production index. We do not support unloading. Resources are
+    # released when the process exits.
+    reader = AnnoyReader("skip", "Facenet")
+    reader.load()
+    return reader
+
+
+@app.on_event("startup")
+def preload_annoy():
+    load_annoy()
 
 
 @app.get("/")
