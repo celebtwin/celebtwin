@@ -11,7 +11,7 @@ absl-py==2.3.0
     #   tensorflow
 annotated-types==0.7.0
     # via pydantic
-annoy @ git+https://github.com/spotify/annoy.git@v1.17.3
+annoy==1.16.3
     # via celebtwin (pyproject.toml)
 anyio==4.9.0
     # via starlette

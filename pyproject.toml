@@ -26,7 +26,7 @@ authors = [
     {name = "Léonce Nzamba", email = "leonce.nzamba@gmail.com"},
     ]
 dependencies = [
-  "annoy @ git+https://github.com/spotify/annoy.git@v1.17.3",
+  "annoy<1.17",
   "click",
   "colorama",
   "decorator",
