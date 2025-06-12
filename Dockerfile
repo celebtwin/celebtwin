@@ -11,4 +11,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY celebtwin /app/celebtwin/
 COPY training_outputs/annoy/skip-Facenet-Facenet2018-100-euclidean \
 /app/training_outputs/annoy/skip-Facenet-Facenet2018-100-euclidean
+
+# Try to prevent illegal instruction errors.
+ENV CUDA_VISIBLE_DEVICES=-1
+
 CMD uvicorn --host 0.0.0.0 --port $PORT celebtwin.api.fast:app
