@@ -52,7 +52,6 @@ def predict(file: UploadFile, model: str | None = None):
 
 @app.post("/predict-annoy/")
 def predict_annoy(file: UploadFile):
-    print("Received request for Annoy prediction", flush=True)
     with NamedTemporaryFile(delete=False) as temp_file:
         temp_file.write(file.file.read())
         reader = load_annoy()
@@ -63,8 +62,6 @@ def predict_annoy(file: UploadFile):
                 "status": "error",
                 "error": "NoFaceDetectedError",
                 "message": "No face detected in the image"}
-        finally:
-            print("Request for Annoy prediction completed", flush=True)
         return {"status": "ok", "class": class_, "name": name}
 
 
