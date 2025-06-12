@@ -31,11 +31,20 @@ embedding_size_of = {
     'Facenet': 128,
     'Facenet512': 512,
     'VGG-Face': 4096,
+    "OpenFace": 128,
+    "DeepFace": 4096,
+    "DeepID": 512,  # or 4096 depending on the version
+    "Dlib": 128,
+    "ArcFace": 512,
+    "SFace": 512,
+    "GhostFaceNet": 512,
 }
+
 normalization_of = {
-    'Facenet': 'Facenet',
+    'Facenet': 'Facenet2018',
     'Facenet512': 'Facenet2018',
     'VGG-Face': 'VGGFace2',
+    "OpenFace": 'Facenet2018',
 }
 
 
