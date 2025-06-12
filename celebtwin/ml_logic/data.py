@@ -315,7 +315,7 @@ class SimpleDataset(Dataset):
             shuffle: bool = True,
             validation_split: float = 0):
         super().__init__(num_classes)
-        assert 32 <= image_size <= 256  # Reasonable range
+        assert 32 <= image_size <= 300  # Reasonable range
         assert isinstance(num_classes, int) or num_classes is None
         assert isinstance(undersample, bool)
         assert color_mode in ColorMode
