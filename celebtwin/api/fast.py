@@ -74,6 +74,10 @@ def load_annoy():
 
 @app.on_event("startup")
 def preload_annoy():
+    model = "Facenet"
+    print("Preloading model {model}...")
+    from deepface.modules.modeling import build_model
+    build_model(task="facial_recognition", model_name=model)
     load_annoy()
 
 
