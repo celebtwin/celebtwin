@@ -78,14 +78,21 @@ requirements-dev.txt: requirements-dev.in requirements.txt
 # Name of Docker image
 IMAGE=celebtwin
 
+weights_file_names = facenet_weights.h5 vgg_face_weights.h5
+weights_files = \
+$(addprefix dockerbuild/.deepface/weights/, $(weights_file_names))
+weights_url_base = \
+https://github.com/serengil/deepface_models/releases/download/v1.0
+
 .PHONY: image
-image: dockerbuild/.deepface/weights/facenet_weights.h5
+image: $(weights_files)
+	$(MAKE) $(weights_files)
 	docker build -t $(IMAGE) .
 
-dockerbuild/.deepface/weights/facenet_weights.h5:
+$(weights_files):
 	mkdir -p $(dir $@)
-	curl --location --output $@.tmp https://github.com/serengil/deepface_models/releases/download/v1.0/facenet_weights.h5
-	mv $@.tmp $@
+	curl --location --output $@.part $(weights_url_base)/$(notdir $@)
+	mv $@.part $@
 
 .PHONY: image-run
 image-run:

@@ -13,6 +13,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY celebtwin /app/celebtwin/
 COPY training_outputs/annoy/skip-Facenet-Facenet2018-100-euclidean \
 /app/training_outputs/annoy/skip-Facenet-Facenet2018-100-euclidean
+COPY training_outputs/annoy/skip-VGG-Face-VGGFace2-100-euclidean \
+/app/training_outputs/annoy/skip-VGG-Face-VGGFace2-100-euclidean
 
 # Copy deepface models into the image. The files are downloaded in Makefile.
 COPY dockerbuild/.deepface /app/.deepface/

@@ -1,4 +1,5 @@
 # from tempfile import SpooledTemporaryFile
+from enum import Enum
 from functools import cache
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -6,9 +7,9 @@ from tempfile import NamedTemporaryFile
 from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
+from celebtwin.ml_logic.annoy import AnnoyReader
 from celebtwin.ml_logic.preproc_face import NoFaceDetectedError
 from celebtwin.ml_logic.registry import load_latest_experiment
-from celebtwin.ml_logic.annoy import AnnoyReader
 
 app = FastAPI()
 # app.state.model = load_model()
@@ -50,11 +51,27 @@ def predict(file: UploadFile, model: str | None = None):
     }
 
 
+class FaceModel(str, Enum):
+    """Models available for facial recognition."""
+    facenet = "facenet"
+    vggface = "vggface"
+
+    def as_deepface_model(self):
+        return _deepface_mapping[self]
+
+
+_deepface_mapping = {
+    FaceModel.facenet: "Facenet",
+    FaceModel.vggface: "VGG-Face"
+}
+
+
+@app.post("/predict-annoy/{model}")
 @app.post("/predict-annoy/")
-def predict_annoy(file: UploadFile):
+def predict_annoys(file: UploadFile, model: FaceModel = FaceModel.facenet):
     with NamedTemporaryFile(delete=False) as temp_file:
         temp_file.write(file.file.read())
-        reader = load_annoy()
+        reader = load_annoy(model)
         try:
             class_, name = reader.find_image(Path(temp_file.name))
         except NoFaceDetectedError:
@@ -66,21 +83,22 @@ def predict_annoy(file: UploadFile):
 
 
 @cache
-def load_annoy():
+def load_annoy(model: FaceModel) -> AnnoyReader:
     # Load the production index. We do not support unloading. Resources are
     # released when the process exits.
-    reader = AnnoyReader("skip", "Facenet")
+    reader = AnnoyReader("skip", model.as_deepface_model())
     reader.load()
     return reader
 
 
 @app.on_event("startup")
 def preload_annoy():
-    model = "Facenet"
-    print(f"Preloading model {model}...")
+    print("Preloading models...")
     from deepface.modules.modeling import build_model
-    build_model(task="facial_recognition", model_name=model)
-    load_annoy()
+    for model in FaceModel:
+        build_model(
+            task="facial_recognition", model_name=model.as_deepface_model())
+        load_annoy(model)
 
 
 @app.get("/")
