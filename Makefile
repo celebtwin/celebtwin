@@ -1,3 +1,10 @@
+# Error on undefined variables, or if any command in a pipe fails.
+.SHELLFLAGS := -u -o pipefail
+
+.DELETE_ON_ERROR:  # Delete target if its recipe errors out
+MAKEFLAGS += --warn-undefined-variables
+MAKEFLAGS += --no-builtin-rules
+
 .PHONY: help
 help:
 	@echo "make setup   - creates the virtual env and install packages"
@@ -27,20 +34,6 @@ dataset:
 	https://www.kaggle.com/api/v1/datasets/download/hereisburak/pins-face-recognition
 	cd raw_data && unzip -q "${dataset_zip}"
 
-
-ML_DIR=./raw_data/preprocessed
-HTTPS_DIR=https://storage.googleapis.com/datascience-mlops/taxi-fare-ny/
-
-.PHONY: show_sources_all
-show_sources_all:
-	-ls -l ${ML_DIR} | wc -l
-#	-bq ls ${BQ_DATASET}
-#	-gsutil ls gs://${BUCKET_NAME}
-
-.PHONY: reset_local_files
-reset_local_files:
-	rm -rf ${ML_DIR}
-	mkdir -p ${ML_DIR}
 
 .PHONY: clean
 clean:
