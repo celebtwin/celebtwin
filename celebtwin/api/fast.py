@@ -3,6 +3,8 @@ from enum import Enum
 from functools import cache
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from typing import Literal
+from typing_extensions import TypedDict
 
 from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -66,9 +68,21 @@ _deepface_mapping = {
 }
 
 
+class ErrorResponse(TypedDict):
+    status: Literal["error"]
+    error: str
+    message: str
+
+
+ClassNameResponse = TypedDict(
+    "ClassNameResponse",
+    {"status": Literal["ok"], "class": str, "name": str})
+
+
 @app.post("/predict-annoy/{model}")
 @app.post("/predict-annoy/")
-def predict_annoys(file: UploadFile, model: FaceModel = FaceModel.facenet):
+def predict_annoys(file: UploadFile, model: FaceModel = FaceModel.facenet) \
+        -> ClassNameResponse | ErrorResponse:
     with NamedTemporaryFile(delete=False) as temp_file:
         temp_file.write(file.file.read())
         reader = load_annoy(model)
