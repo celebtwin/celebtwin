@@ -1,7 +1,7 @@
 #!/bin/bash
 
 project=${GCP_PROJECT:-"celebtwin"}
-instance=${INSTANCE:-"celebtwin-instance"}
+instance=${INSTANCE:-"celebtwin-instance-gpu"}
 zone=${ZONE:-"europe-west4-b"}
 
 gcloud compute ssh --project="$project" --zone="$zone" "$instance" \
@@ -9,7 +9,7 @@ gcloud compute ssh --project="$project" --zone="$zone" "$instance" \
 set -euo pipefail  # Strict error handling
 set -x  # Enable command tracing
 
-PYTHON=/opt/python/3.10/bin/python3.10
+PYTHON=/opt/conda/bin/python
 
 # Silence annoying locale warnings
 sudo bash -c 'grep -q ^LC_ALL= /etc/default/locale  || echo LC_ALL=C.UTF-8 >> /etc/default/locale'
