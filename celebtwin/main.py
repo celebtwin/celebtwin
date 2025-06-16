@@ -115,36 +115,36 @@ def pred(image_path: Path) -> None:
 detector_choice = click.Choice([
     'opencv', 'retinaface', 'mtcnn', 'ssd', 'dlib', 'mediapipe', 'yolov8',
     'yolov11n', 'yolov11s', 'yolov11m', 'centerface', 'builtin'])
-annoy_align_option = click.option(
+ann_align_option = click.option(
     "-a", "--align", type=detector_choice, default="builtin",
     help="""Detector backend for face alignment, defaults to built-in.""")
 
 embedding_choice = click.Choice([
     "VGG-Face", "Facenet", "Facenet512", "OpenFace", "DeepFace", "DeepID",
     "Dlib", "ArcFace", "SFace", "GhostFaceNet"])
-annoy_model_option = click.option(
+ann_model_option = click.option(
     "-m", "--model", type=embedding_choice, default="Facenet",
     help="Model used to generate embeddings, defaults to Facenet.")
 
 
 @cli.command()
-@annoy_align_option
-@annoy_model_option
-def build_annoy(align: str, model: str) -> None:
+@ann_align_option
+@ann_model_option
+def build_ann(align: str, model: str) -> None:
     """Build an Annoy index for the dataset."""
     if align == "builtin":
         align = "skip"
     print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
-    from celebtwin.logic.ann import build_annoy_index
+    from celebtwin.logic.ann import build_ann_index
     print(Fore.MAGENTA + "⭐️ Building Annoy index" + Style.RESET_ALL)
-    build_annoy_index(align, model)
+    build_ann_index(align, model)
 
 
 @cli.command()
-@annoy_align_option
-@annoy_model_option
+@ann_align_option
+@ann_model_option
 @click.argument("image_path", type=click.Path(exists=True))
-def pred_annoy(image_path: Path, align: str, model: str) -> None:
+def pred_ann(image_path: Path, align: str, model: str) -> None:
     """Predict the class of a single image using embedding proximity."""
     if align == "builtin":
         align = "skip"

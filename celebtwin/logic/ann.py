@@ -49,7 +49,7 @@ normalization_of = {
 }
 
 
-def build_annoy_index(detector: str, model: str) -> None:
+def build_ann_index(detector: str, model: str) -> None:
     """Build an Annoy index for the raw dataset.
     Args:
         detector (str): The face detector to use.
