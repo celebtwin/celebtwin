@@ -67,7 +67,7 @@ class ANNReader:
         self.detector = detector
         self.model = model
         normalization = normalization_of[model]
-        identifier = annoy_identifier(detector, model, normalization)
+        identifier = ann_identifier(detector, model, normalization)
         self.dimension = embedding_size_of[model]
         self.index_dir = annoy_dir / identifier
         self.index_path = self.index_dir / annoy_name
@@ -319,7 +319,7 @@ class DeepfaceCache:
         return self._pickle_path(path).exists()
 
 
-def annoy_identifier(detector: str, model: str, normalization: str):
+def ann_identifier(detector: str, model: str, normalization: str):
     return f'{detector}-{model}-{normalization}-{annoy_trees}-{annoy_metric}'
 
 
@@ -327,7 +327,7 @@ class AnnoyWriter:
 
     def __init__(self, detector: str, model: str, normalization: str):
         self.dimension = embedding_size_of[model]
-        identifier = annoy_identifier(detector, model, normalization)
+        identifier = ann_identifier(detector, model, normalization)
         annoy_subdir = annoy_dir / identifier
         annoy_subdir.mkdir(parents=True, exist_ok=True)
         self.index_path = annoy_subdir / annoy_name
