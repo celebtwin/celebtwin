@@ -130,14 +130,28 @@ ann_model_option = click.option(
 @cli.command()
 @ann_align_option
 @ann_model_option
-def build_ann(align: str, model: str) -> None:
-    """Build an Annoy index for the dataset."""
+@click.argument("validation_split", type=float)
+def eval_ann(align: str, model: str, validation_split: float) -> None:
+    """Evaluate the ANN index."""
     if align == "builtin":
         align = "skip"
     print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
-    from celebtwin.logic.ann import build_ann_index
-    print(Fore.MAGENTA + "⭐️ Building Annoy index" + Style.RESET_ALL)
-    build_ann_index(align, model)
+    from celebtwin.logic.ann import ANNIndexEvaluator
+    print(Fore.MAGENTA + "⭐️ Evaluating ANN index" + Style.RESET_ALL)
+    ANNIndexEvaluator(align, model, validation_split).run()
+
+
+@cli.command()
+@ann_align_option
+@ann_model_option
+def build_ann(align: str, model: str) -> None:
+    """Build an ANN index for the dataset."""
+    if align == "builtin":
+        align = "skip"
+    print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
+    from celebtwin.logic.ann import ANNIndexBuilder
+    print(Fore.MAGENTA + "⭐️ Building ANN index" + Style.RESET_ALL)
+    ANNIndexBuilder(align, model).run()
 
 
 @cli.command()

@@ -21,7 +21,6 @@ from celebtwin.params import LOCAL_REGISTRY_PATH
 ann_dir = Path(LOCAL_REGISTRY_PATH) / "annoy"
 deepface_dir = Path(LOCAL_REGISTRY_PATH) / "deepface"
 
-validation_split = 0
 annoy_metric = 'euclidean'
 annoy_trees = 100
 
@@ -47,21 +46,6 @@ normalization_of = {
     'VGG-Face': 'VGGFace2',
     "OpenFace": 'Facenet2018',
 }
-
-
-def build_ann_index(detector: str, model: str) -> None:
-    """Build an Annoy index for the raw dataset.
-    Args:
-        detector (str): The face detector to use.
-        model (str): The embedding model to use.
-    """
-    assert model in embedding_size_of, \
-        f"Add model to embedding_size_of: {model}"
-    if validation_split:
-        builder = ANNIndexEvaluator(detector, model, validation_split)
-    else:
-        builder = ANNIndexBuilder(detector, model)
-    builder.build_index()
 
 
 class ANNReader:
@@ -151,7 +135,7 @@ class ANNIndexBuilder:
             detector, model, self.normalization)
         self.aligned_entries: dict[tuple[str, str], Path] = {}
 
-    def build_index(self) -> None:
+    def run(self) -> None:
         self._build_path_lists()
         self._fill_deepface_cache()
         self._build_ann_index()
