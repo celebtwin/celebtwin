@@ -17,7 +17,7 @@ from celebtwin.logic.preproc_face import (
     NoFaceDetectedError, preprocess_face_aligned)
 from celebtwin.params import LOCAL_REGISTRY_PATH
 
-annoy_dir = Path(LOCAL_REGISTRY_PATH) / "annoy"
+ann_dir = Path(LOCAL_REGISTRY_PATH) / "annoy"
 deepface_dir = Path(LOCAL_REGISTRY_PATH) / "deepface"
 
 validation_split = 0
@@ -69,7 +69,7 @@ class ANNReader:
         normalization = normalization_of[model]
         identifier = ann_identifier(detector, model, normalization)
         self.dimension = embedding_size_of[model]
-        self.index_dir = annoy_dir / identifier
+        self.index_dir = ann_dir / identifier
         self.index_path = self.index_dir / annoy_name
         self.csv_path = self.index_dir / metadata_name
         self.index = None
@@ -328,7 +328,7 @@ class AnnoyWriter:
     def __init__(self, detector: str, model: str, normalization: str):
         self.dimension = embedding_size_of[model]
         identifier = ann_identifier(detector, model, normalization)
-        annoy_subdir = annoy_dir / identifier
+        annoy_subdir = ann_dir / identifier
         annoy_subdir.mkdir(parents=True, exist_ok=True)
         self.index_path = annoy_subdir / annoy_name
         self.tmp_path = self.index_path.with_suffix('.tmp')
