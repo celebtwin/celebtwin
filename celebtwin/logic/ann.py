@@ -85,7 +85,7 @@ class AnnoyReader:
         with csv_file:
             self.metadata = metadata = {}
             for item, class_, name in csv.reader(csv_file):
-                assert item not in metadata, \
+                assert int(item) not in metadata, \
                     f"Duplicate item {item} in metadata"
                 metadata[int(item)] = (class_, name)
 
