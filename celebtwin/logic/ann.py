@@ -366,6 +366,11 @@ class ANNWriter:
 
 class ANNReaderBackend:
 
+    _file_name: str
+
+    def __init__(self, dir_path: Path):
+        self._index_path = dir_path / self._file_name
+
     def close(self) -> None:
         raise NotImplementedError
 
@@ -375,9 +380,11 @@ class ANNReaderBackend:
 
 class AnnoyReaderBackend(ANNReaderBackend):
 
+    _file_name = annoy_name
+
     def __init__(self, dir_path: Path, dimension: int):
-        index_path = dir_path / annoy_name
-        print(f"Loading Annoy index from {index_path}")
+        super().__init__(dir_path)
+        print(f"Loading Annoy index from {self._index_path}")
         self._index = AnnoyIndex(dimension, annoy_metric)  # type: ignore
         self._index.load(str(index_path))
 
