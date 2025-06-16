@@ -11,7 +11,7 @@ from pathlib import Path
 
 import numpy as np
 
-from celebtwin.ml_logic import data, model, registry
+from celebtwin.logic import data, model, registry
 
 
 class Experiment:

@@ -34,10 +34,10 @@ def train(dataset: str, model: str, classes: int, learning_rate: float,
     Save validation metrics and the trained model.
     """
     print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
-    from celebtwin.ml_logic.data import (
+    from celebtwin.logic.data import (
         AlignedDataset, ColorMode, ResizeMode, SimpleDataset)
-    from celebtwin.ml_logic.experiment import Experiment
-    from celebtwin.ml_logic.model import SimpleLeNetModel, WeekendModel
+    from celebtwin.logic.experiment import Experiment
+    from celebtwin.logic.model import SimpleLeNetModel, WeekendModel
     print(Fore.MAGENTA + "⭐️ Training" + Style.RESET_ALL)
 
     image_size = 64
@@ -82,7 +82,7 @@ def train(dataset: str, model: str, classes: int, learning_rate: float,
 def batch_align() -> None:
     """Perform face alignment on all images."""
     print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
-    from celebtwin.ml_logic.data import AlignedDatasetFull
+    from celebtwin.logic.data import AlignedDatasetFull
     print(Fore.MAGENTA + "⭐️ Batch aligning" + Style.RESET_ALL)
     AlignedDatasetFull().preprocess_all()
     print("✅ batch_align() done")
@@ -93,8 +93,8 @@ def batch_align() -> None:
 def pred(image_path: Path) -> None:
     """Predict the class of a single image."""
     print(Fore.MAGENTA + "⭐️ Predicting" + Style.RESET_ALL)
-    from celebtwin.ml_logic.preproc_face import NoFaceDetectedError
-    from celebtwin.ml_logic.registry import (
+    from celebtwin.logic.preproc_face import NoFaceDetectedError
+    from celebtwin.logic.registry import (
         NoModelFoundError, load_latest_experiment)
     try:
         experiment = load_latest_experiment()
@@ -135,7 +135,7 @@ def build_annoy(align: str, model: str) -> None:
     if align == "builtin":
         align = "skip"
     print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
-    from celebtwin.ml_logic.annoy import build_annoy_index
+    from celebtwin.logic.annoy import build_annoy_index
     print(Fore.MAGENTA + "⭐️ Building Annoy index" + Style.RESET_ALL)
     build_annoy_index(align, model)
 
@@ -149,8 +149,8 @@ def pred_annoy(image_path: Path, align: str, model: str) -> None:
     if align == "builtin":
         align = "skip"
     print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
-    from celebtwin.ml_logic.annoy import AnnoyReader
-    from celebtwin.ml_logic.preproc_face import NoFaceDetectedError
+    from celebtwin.logic.annoy import AnnoyReader
+    from celebtwin.logic.preproc_face import NoFaceDetectedError
     print(Fore.MAGENTA + "⭐️ Predicting" + Style.RESET_ALL)
     with AnnoyReader(align, model) as reader:
         try:

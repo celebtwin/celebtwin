@@ -9,9 +9,9 @@ from typing_extensions import TypedDict
 from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
-from celebtwin.ml_logic.annoy import AnnoyReader
-from celebtwin.ml_logic.preproc_face import NoFaceDetectedError
-from celebtwin.ml_logic.registry import load_latest_experiment
+from celebtwin.logic.annoy import AnnoyReader
+from celebtwin.logic.preproc_face import NoFaceDetectedError
+from celebtwin.logic.registry import load_latest_experiment
 
 app = FastAPI()
 # app.state.model = load_model()

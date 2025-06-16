@@ -53,5 +53,5 @@ packages = [
   "celebtwin",
   "celebtwin.api",
   "celebtwin.interface",
-  "celebtwin.ml_logic",
+  "celebtwin.logic",
 ]

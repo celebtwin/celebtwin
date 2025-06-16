@@ -12,8 +12,8 @@ from annoy import AnnoyIndex
 from deepface import DeepFace  # type: ignore
 from tqdm import tqdm
 
-from celebtwin.ml_logic.data import AlignedDatasetFull, PinsDataset
-from celebtwin.ml_logic.preproc_face import (
+from celebtwin.logic.data import AlignedDatasetFull, PinsDataset
+from celebtwin.logic.preproc_face import (
     NoFaceDetectedError, preprocess_face_aligned)
 from celebtwin.params import LOCAL_REGISTRY_PATH
 

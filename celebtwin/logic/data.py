@@ -15,7 +15,7 @@ from keras.config import image_data_format  # type: ignore
 from keras.preprocessing import image_dataset_from_directory  # type: ignore
 from tqdm import tqdm  # type: ignore
 
-from celebtwin.ml_logic.preproc_face import (
+from celebtwin.logic.preproc_face import (
     NoFaceDetectedError, preprocess_face_aligned)
 
 RAW_DATA = Path('raw_data')
@@ -210,7 +210,7 @@ class AlignedDatasetFull(_FullDataset):
 
     def preprocess_all(self) -> None:
         """Process all images, rename directory to dataset_dir and upload."""
-        from celebtwin.ml_logic.registry import upload_dataset
+        from celebtwin.logic.registry import upload_dataset
         if self._dataset_dir.exists():
             raise ValueError(
                 f'Dataset directory already exists: {self._dataset_dir}')
@@ -223,7 +223,7 @@ class AlignedDatasetFull(_FullDataset):
 
     def try_download(self) -> bool:
         """Try to download the dataset."""
-        from celebtwin.ml_logic.registry import try_download_dataset
+        from celebtwin.logic.registry import try_download_dataset
         if self._dataset_dir.exists():
             return True
         return try_download_dataset(self._dataset_dir)
@@ -406,7 +406,7 @@ class SimpleDataset(Dataset):
 
         The directory is created at `self._dataset_dir`.
         """
-        from celebtwin.ml_logic.registry import (
+        from celebtwin.logic.registry import (
             try_download_dataset, upload_dataset)
         downloaded = try_download_dataset(self._dataset_dir)
         if downloaded:

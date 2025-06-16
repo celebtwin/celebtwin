@@ -8,7 +8,7 @@ import keras  # type: ignore
 from google.cloud import storage  # type: ignore
 from google.cloud.exceptions import NotFound
 
-from celebtwin.ml_logic import experiment
+from celebtwin.logic import experiment
 from celebtwin.params import BUCKET_NAME, LOCAL_REGISTRY_PATH, MODEL_TARGET
 
 models_dir = Path(LOCAL_REGISTRY_PATH) / "models"
@@ -80,7 +80,7 @@ def load_latest_experiment() -> 'experiment.Experiment':
 
     If MODEL_TARGET is 'local', find the latest experiment on disk and return it.
     """
-    from celebtwin.ml_logic.experiment import load_experiment
+    from celebtwin.logic.experiment import load_experiment
 
     if MODEL_TARGET == "gcs":
         client = storage.Client()

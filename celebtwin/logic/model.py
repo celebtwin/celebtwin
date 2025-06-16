@@ -7,7 +7,7 @@ from colorama import Fore, Style
 from keras import Input, Sequential, layers, optimizers
 from keras.callbacks import EarlyStopping  # type: ignore
 
-from celebtwin.ml_logic import registry
+from celebtwin.logic import registry
 
 
 class Model:
