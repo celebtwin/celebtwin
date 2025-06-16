@@ -327,7 +327,7 @@ class ANNWriter:
         self.tmp_csv_path = self.csv_path.with_suffix('.tmp')
         self.csv_file = None
         self.csv_writer = None
-        self.index: AnnoyWriterBackend | None = None
+        self.index: ANNWriterBackend | None = None
         self.counter = 0
 
     def __enter__(self):
@@ -360,6 +360,7 @@ class ANNWriter:
 
 
 class ANNReaderBackend:
+    """Abstract base class for ANN index reader backends."""
 
     _file_name: str
 
@@ -374,6 +375,7 @@ class ANNReaderBackend:
 
 
 class ANNWriterBackend:
+    """Abstract class for ANN index writer backends."""
 
     _file_name: str
 
@@ -400,6 +402,7 @@ class ANNWriterBackend:
 
 
 class AnnoyReaderBackend(ANNReaderBackend):
+    """Concrete ANN index reader backend using Annoy."""
 
     _file_name = annoy_name
 
@@ -418,6 +421,7 @@ class AnnoyReaderBackend(ANNReaderBackend):
         return neighbors[0]
 
 class AnnoyWriterBackend(ANNWriterBackend):
+    """Concrete ANN index writer backend using Annoy."""
 
     _file_name = annoy_name
 
