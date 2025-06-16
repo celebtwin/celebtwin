@@ -64,22 +64,18 @@ class ANNReader:
     """Search in a, previously created, Approximate Nearest Neighbor index."""
 
     def __init__(self, detector: str, model: str):
-        self.detector = detector
-        self.model = model
-        normalization = normalization_of[model]
+        self.detector: str = detector
+        self.model: str = model
+        normalization: str = normalization_of[model]
         identifier = ann_identifier(detector, model, normalization)
-        self.dimension = embedding_size_of[model]
-        self.index_dir = ann_dir / identifier
-        self.index_path = self.index_dir / annoy_name
-        self.csv_path = self.index_dir / metadata_name
-        self.index = None
-        self.metadata = None
+        self.dimension: int = embedding_size_of[model]
+        self.index_dir: Path = ann_dir / identifier
+        self.csv_path: Path = self.index_dir / metadata_name
+        self.index: ANNReaderBackend | None = None
+        self.metadata: dict[int, tuple[str, str]] | None = None
 
     def load(self) -> None:
-        self.index = AnnoyIndex(self.dimension, annoy_metric)  # type: ignore
-        assert self.index is not None
-        print(f"Loading index from {self.index_path}")
-        self.index.load(str(self.index_path))
+        self.index = AnnoyReaderBackend(self.index_dir, self.dimension)
         print(f"Loading metadata from {self.csv_path}")
         csv_file = open(self.csv_path, 'rt', encoding='utf-8')
         with csv_file:
@@ -91,10 +87,8 @@ class ANNReader:
 
     def close(self) -> None:
         if self.index is not None:
-            self.index.unload()
-            self.index = None
-        if self.metadata is not None:
-            self.metadata = None
+            self.index.close()
+        self.metadata = None
 
     def __enter__(self):
         self.load()
@@ -107,9 +101,8 @@ class ANNReader:
         """Return the class and name of the entry closest to the vector."""
         assert self.index is not None
         assert self.metadata is not None
-        neighbors = self.index.get_nns_by_vector(vector, 1)
-        assert len(neighbors) == 1
-        return self.metadata[neighbors[0]]
+        value = self.index.find_neighbor(vector)
+        return self.metadata[value]
 
     def find_image(self, path: Path) -> tuple[str, str]:
         """Return the class and name of the entry closest to the image.
@@ -369,3 +362,29 @@ class AnnoyWriter:
         self.csv_writer.writerow([self.counter, class_, name])
         self.index.add_item(self.counter, vector)
         self.counter += 1
+
+
+class ANNReaderBackend:
+
+    def close(self) -> None:
+        raise NotImplementedError
+
+    def find_neighbor(self, vector: list[float]) -> int:
+        raise NotImplementedError
+
+
+class AnnoyReaderBackend(ANNReaderBackend):
+
+    def __init__(self, dir_path: Path, dimension: int):
+        index_path = dir_path / annoy_name
+        print(f"Loading Annoy index from {index_path}")
+        self._index = AnnoyIndex(dimension, annoy_metric)  # type: ignore
+        self._index.load(str(index_path))
+
+    def close(self) -> None:
+        self._index.unload()
+
+    def find_neighbor(self, vector: list[float]) -> int:
+        neighbors = self._index.get_nns_by_vector(vector, 1)
+        assert len(neighbors) == 1
+        return neighbors[0]
