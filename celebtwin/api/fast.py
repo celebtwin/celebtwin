@@ -9,7 +9,7 @@ from typing_extensions import TypedDict
 from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
-from celebtwin.logic.annoy import AnnoyReader
+from celebtwin.logic.ann import AnnoyReader
 from celebtwin.logic.preproc_face import NoFaceDetectedError
 from celebtwin.logic.registry import load_latest_experiment
 

@@ -1,6 +1,6 @@
-"""Integration with Deepface and Annoy for face recognition."""
+"""Find faces with Approximate Nearest Neighbor (ANN) search."""
+
 import csv
-import errno
 import pickle
 import random
 from itertools import groupby

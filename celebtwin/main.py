@@ -135,7 +135,7 @@ def build_annoy(align: str, model: str) -> None:
     if align == "builtin":
         align = "skip"
     print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
-    from celebtwin.logic.annoy import build_annoy_index
+    from celebtwin.logic.ann import build_annoy_index
     print(Fore.MAGENTA + "⭐️ Building Annoy index" + Style.RESET_ALL)
     build_annoy_index(align, model)
 
@@ -149,7 +149,7 @@ def pred_annoy(image_path: Path, align: str, model: str) -> None:
     if align == "builtin":
         align = "skip"
     print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
-    from celebtwin.logic.annoy import AnnoyReader
+    from celebtwin.logic.ann import AnnoyReader
     from celebtwin.logic.preproc_face import NoFaceDetectedError
     print(Fore.MAGENTA + "⭐️ Predicting" + Style.RESET_ALL)
     with AnnoyReader(align, model) as reader:
