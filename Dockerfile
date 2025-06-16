@@ -21,4 +21,4 @@ COPY dockerbuild/.deepface /app/.deepface/
 # Tells Deepface where model files are. Also where it will download if needed.
 ENV DEEPFACE_HOME=/app
 
-CMD ["sh", "-c", "exec uvicorn --host 0.0.0.0 --port $PORT celebtwin.api.fast:app"]
+CMD ["sh", "-c", "exec uvicorn --host 0.0.0.0 --port $PORT celebtwin.api:app"]

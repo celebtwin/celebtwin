@@ -51,7 +51,6 @@ Repository = "https://github.com/celebtwin/celebtwin.git"
 [tool.setuptools]
 packages = [
   "celebtwin",
-  "celebtwin.api",
   "celebtwin.interface",
   "celebtwin.logic",
 ]

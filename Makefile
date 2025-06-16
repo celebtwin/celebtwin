@@ -41,7 +41,7 @@ clean:
 
 .PHONY: run_api
 run_api:
-	uvicorn celebtwin.api.fast:app --reload
+	uvicorn celebtwin.api:app --reload
 
 .PHONY: train
 train:
