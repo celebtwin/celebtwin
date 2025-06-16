@@ -6,6 +6,7 @@ import random
 from itertools import groupby
 from multiprocessing.pool import Pool
 from pathlib import Path
+from typing import Iterator
 
 import numpy as np
 from annoy import AnnoyIndex
@@ -56,7 +57,10 @@ def build_annoy_index(detector: str, model: str) -> None:
     """
     assert model in embedding_size_of, \
         f"Add model to embedding_size_of: {model}"
-    builder = ANNIndexBuilder(detector, model, validation_split)
+    if validation_split:
+        builder = ANNIndexEvaluator(detector, model, validation_split)
+    else:
+        builder = ANNIndexBuilder(detector, model)
     builder.build_index()
 
 
@@ -137,24 +141,21 @@ class ANNReader:
 
 
 class ANNIndexBuilder:
-    """Internal use."""
+    """Compute representation vectors of faces and build ANN index."""
 
-    def __init__(self, detector: str, model: str, validation_split: float):
+    def __init__(self, detector: str, model: str):
         self.detector = detector
         self.model = model
         self.normalization = normalization_of[model]
-        self.validation_split = validation_split
         self.deepface_cache = DeepfaceCache(
             detector, model, self.normalization)
         self.aligned_entries: dict[tuple[str, str], Path] = {}
-        self.validation_set: set[Path] = set()
 
     def build_index(self) -> None:
         self._build_path_lists()
         self._fill_deepface_cache()
-        self._build_annoy_index()
-        self._report_accuracy()
-        self._report_build()
+        self._build_ann_index()
+        self._report()
 
     def _build_path_lists(self) -> None:
         if self.detector == "skip":
@@ -167,15 +168,6 @@ class ANNIndexBuilder:
         downloaded = dataset.try_download()
         assert downloaded
         self.path_list = list(dataset.iter_images())
-
-        if self.validation_split:
-            # Build stratified validation set.
-            for class_, iter_class_paths in groupby(
-                    self.path_list, lambda p: p.parent.name):
-                class_paths = list(iter_class_paths)
-                n_validation = int(len(class_paths) * self.validation_split)
-                self.validation_set.update(
-                    random.sample(class_paths, n_validation))
 
     def _fill_deepface_cache(self) -> None:
         """Fill the Deepface cache with embeddings for all images."""
@@ -222,42 +214,82 @@ class ANNIndexBuilder:
             f"Expected exactly one face per image, got {len(result_list)}"
         return result_list[0]
 
-    def _build_annoy_index(self) -> None:
-        """Build the Annoy index for the dataset."""
-        # Only compute detection rate if we compute the validation accuracy.
-        if not self.validation_split:
-            total_count = 0
-        else:
-            total_count = len(self.path_list) - len(self.validation_set)
-        detected_count = 0
-
-        # Build the annoy index
+    def _build_ann_index(self) -> None:
+        """Build the ANN index for the dataset."""
         with ANNWriter(self.detector, self.model, self.normalization) \
-                as annoy_writer:
-            for path in self.path_list:
-                if path in self.validation_set:
-                    continue
-                class_, name = path.parent.name, path.name
+                as ann_writer:
+            for path in self._iter_images_to_index():
                 vector = self.deepface_cache.get(path)
                 if vector == "noface":
                     continue
-                detected_count += 1
-                annoy_writer.add_item(class_, name, vector)
+                self._add_item(ann_writer, path, vector)
 
-        if total_count:
-            print(f"Detected {detected_count} faces in {total_count}"
-                  f" training images ({detected_count / total_count:.2%})")
+    def _iter_images_to_index(self) -> Iterator[Path]:
+        yield from self.path_list
 
-    def _report_accuracy(self) -> None:
-        """Report the accuracy of the Annoy index on the validation set."""
-        if not self.validation_split:
-            return
-        total_count = len(self.validation_set)
+    def _add_item(
+            self, ann_writer: 'ANNWriter', path: Path, vector: list[float]) \
+            -> None:
+        class_, name = path.parent.name, path.name
+        ann_writer.add_item(class_, name, vector)
+
+    def _report(self) -> None:
+        """Report that the index is ready for deployment."""
+        reader = ANNReader(self.detector, self.model)
+        print(f"Index ready for deployment: {reader.index_dir}")
+
+
+class ANNIndexEvaluator(ANNIndexBuilder):
+    """Compute representation vectors and evaluate classification accuracy.
+
+    It also report success rate for face detection in the training and
+    validation sets.
+
+    The reported accuracy depends on detector, model and ANN backend. It is
+    useful to compare models and tune ANN backends.
+    """
+
+    def __init__(self, detector: str, model: str, validation_split: float):
+        super().__init__(detector, model)
+        self._validation_split = validation_split
+        self._validation_set: set[Path] = set()
+        self._detected_count = 0
+
+    def _build_path_lists(self) -> None:
+        super()._build_path_lists()
+        # Build stratified validation set.
+        for class_, iter_class_paths in groupby(
+                self.path_list, lambda p: p.parent.name):
+            class_paths = list(iter_class_paths)
+            n_validation = int(len(class_paths) * self._validation_split)
+            self._validation_set.update(
+                random.sample(class_paths, n_validation))
+
+    def _build_ann_index(self) -> None:
+        self._total_count = len(self.path_list) - len(self._validation_set)
+        super()._build_ann_index()
+        detection_rate = self._detected_count / self._total_count
+        print(f"Detected {self._detected_count} faces in {self._total_count}"
+              f" training images ({detection_rate:.2%})")
+
+    def _iter_images_to_index(self) -> Iterator[Path]:
+        yield from (p for p in super()._iter_images_to_index()
+                    if p not in self._validation_set)
+
+    def _add_item(
+            self, ann_writer: 'ANNWriter', path: Path, vector: list[float]) \
+                -> None:
+        self._detected_count += 1
+        super()._add_item(ann_writer, path, vector)
+
+    def _report(self) -> None:
+        """Report the accuracy of the ANN index on the validation set."""
+        total_count = len(self._validation_set)
         detected_count = 0
         correct_count = 0
         with ANNReader(self.detector, self.model) as annoy_reader:
             print("Computing accuracy...")
-            for path in tqdm(self.validation_set):
+            for path in tqdm(self._validation_set):
                 vector = self.deepface_cache.get(path)
                 if vector == "noface":
                     continue
@@ -270,13 +302,6 @@ class ANNIndexBuilder:
                   f" validation images ({detected_count / total_count:.2%})")
             print(
                 f"Classification accuracy: {correct_count / total_count:.2%}")
-
-    def _report_build(self) -> None:
-        """Report if the index is ready for deployment."""
-        if self.validation_split:
-            return
-        reader = ANNReader(self.detector, self.model)
-        print(f"Index ready for deployment: {reader.index_dir}")
 
 
 class DeepfaceCache:
@@ -419,6 +444,7 @@ class AnnoyReaderBackend(ANNReaderBackend):
         neighbors = self._index.get_nns_by_vector(vector, 1)
         assert len(neighbors) == 1
         return neighbors[0]
+
 
 class AnnoyWriterBackend(ANNWriterBackend):
     """Concrete ANN index writer backend using Annoy."""
