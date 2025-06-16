@@ -232,7 +232,7 @@ class ANNIndexBuilder:
         detected_count = 0
 
         # Build the annoy index
-        with AnnoyWriter(self.detector, self.model, self.normalization) \
+        with ANNWriter(self.detector, self.model, self.normalization) \
                 as annoy_writer:
             for path in self.path_list:
                 if path in self.validation_set:
@@ -316,7 +316,7 @@ def ann_identifier(detector: str, model: str, normalization: str):
     return f'{detector}-{model}-{normalization}-{annoy_trees}-{annoy_metric}'
 
 
-class AnnoyWriter:
+class ANNWriter:
 
     def __init__(self, detector: str, model: str, normalization: str):
         self.dimension = embedding_size_of[model]
