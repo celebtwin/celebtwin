@@ -321,22 +321,19 @@ class ANNWriter:
     def __init__(self, detector: str, model: str, normalization: str):
         self.dimension = embedding_size_of[model]
         identifier = ann_identifier(detector, model, normalization)
-        annoy_subdir = ann_dir / identifier
-        annoy_subdir.mkdir(parents=True, exist_ok=True)
-        self.index_path = annoy_subdir / annoy_name
-        self.tmp_path = self.index_path.with_suffix('.tmp')
-        self.csv_path = annoy_subdir / metadata_name
+        self.ann_subdir = ann_dir / identifier
+        self.ann_subdir.mkdir(parents=True, exist_ok=True)
+        self.csv_path = self.ann_subdir / metadata_name
         self.tmp_csv_path = self.csv_path.with_suffix('.tmp')
         self.csv_file = None
         self.csv_writer = None
-        self.index = None
+        self.index: AnnoyWriterBackend | None = None
         self.counter = 0
 
     def __enter__(self):
         # Delay creation of the annoy index until the first addition, so we do
         # not need to know the embedding size ahead of time.
-        self.index = AnnoyIndex(self.dimension, annoy_metric)  # type: ignore
-        self.index.on_disk_build(str(self.tmp_path))
+        self.index = AnnoyWriterBackend(self.ann_subdir, self.dimension)
         self.csv_file = open(self.tmp_csv_path, 'wt', encoding='utf-8')
         self.csv_writer = csv.writer(self.csv_file)
         return self
@@ -346,17 +343,15 @@ class ANNWriter:
             self.csv_file.close()
         if exc_type is None:
             print(f"Built Annoy index with {self.counter} items.")
-            if self.index is not None:
-                self.index.build(annoy_trees)
-                self.index.unload
-                self.tmp_path.rename(self.index_path)
-            if self.tmp_csv_path.exists():
-                self.tmp_csv_path.rename(self.csv_path)
+            assert self.index is not None
+            self.index.commit()
+            self.tmp_csv_path.rename(self.csv_path)
         else:
-            self.tmp_path.unlink(missing_ok=True)
-            self.tmp_csv_path.unlink(missing_ok=True)
+            assert self.index is not None
+            self.index.abort()
+            self.tmp_csv_path.unlink()
 
-    def add_item(self, class_, name, vector):
+    def add_item(self, class_: str, name: str, vector: list[float]) -> None:
         assert self.csv_writer is not None
         assert self.index is not None
         self.csv_writer.writerow([self.counter, class_, name])
@@ -378,6 +373,32 @@ class ANNReaderBackend:
         raise NotImplementedError
 
 
+class ANNWriterBackend:
+
+    _file_name: str
+
+    def __init__(self, dir_path: Path):
+        self._index_path = dir_path / self._file_name
+        self._tmp_path = dir_path / (self._file_name + '.tmp')
+
+    def commit(self) -> None:
+        self._commit()
+        self._tmp_path.rename(self._index_path)
+
+    def _commit(self) -> None:
+        raise NotImplementedError
+
+    def abort(self):
+        self._abort()
+        self._tmp_path.unlink()
+
+    def _abort(self) -> None:
+        raise NotImplementedError
+
+    def add_item(self, value: int, vector: list[float]) -> None:
+        raise NotImplementedError
+
+
 class AnnoyReaderBackend(ANNReaderBackend):
 
     _file_name = annoy_name
@@ -386,7 +407,7 @@ class AnnoyReaderBackend(ANNReaderBackend):
         super().__init__(dir_path)
         print(f"Loading Annoy index from {self._index_path}")
         self._index = AnnoyIndex(dimension, annoy_metric)  # type: ignore
-        self._index.load(str(index_path))
+        self._index.load(str(self._index_path))
 
     def close(self) -> None:
         self._index.unload()
@@ -395,3 +416,22 @@ class AnnoyReaderBackend(ANNReaderBackend):
         neighbors = self._index.get_nns_by_vector(vector, 1)
         assert len(neighbors) == 1
         return neighbors[0]
+
+class AnnoyWriterBackend(ANNWriterBackend):
+
+    _file_name = annoy_name
+
+    def __init__(self, dir_path: Path, dimension: int):
+        super().__init__(dir_path)
+        self._index = AnnoyIndex(dimension, annoy_metric)  # type: ignore
+        self._index.on_disk_build(str(self._tmp_path))
+
+    def _commit(self) -> None:
+        self._index.build(annoy_trees)
+        self._index.unload()
+
+    def _abort(self) -> None:
+        self._index.unload()
+
+    def add_item(self, value: int, vector: list[float]) -> None:
+        self._index.add_item(value, vector)
