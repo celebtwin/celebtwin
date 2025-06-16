@@ -56,7 +56,7 @@ def build_annoy_index(detector: str, model: str) -> None:
     """
     assert model in embedding_size_of, \
         f"Add model to embedding_size_of: {model}"
-    builder = AnnoyIndexBuilder(detector, model, validation_split)
+    builder = ANNIndexBuilder(detector, model, validation_split)
     builder.build_index()
 
 
@@ -143,7 +143,7 @@ class ANNReader:
         return result["embedding"]
 
 
-class AnnoyIndexBuilder:
+class ANNIndexBuilder:
     """Internal use."""
 
     def __init__(self, detector: str, model: str, validation_split: float):
