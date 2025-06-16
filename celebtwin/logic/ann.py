@@ -60,8 +60,8 @@ def build_annoy_index(detector: str, model: str) -> None:
     builder.build_index()
 
 
-class AnnoyReader:
-    """Finds the class and name of the closest image in the Annoy index."""
+class ANNReader:
+    """Search in a, previously created, Approximate Nearest Neighbor index."""
 
     def __init__(self, detector: str, model: str):
         self.detector = detector
@@ -262,7 +262,7 @@ class AnnoyIndexBuilder:
         total_count = len(self.validation_set)
         detected_count = 0
         correct_count = 0
-        with AnnoyReader(self.detector, self.model) as annoy_reader:
+        with ANNReader(self.detector, self.model) as annoy_reader:
             print("Computing accuracy...")
             for path in tqdm(self.validation_set):
                 vector = self.deepface_cache.get(path)
@@ -282,7 +282,7 @@ class AnnoyIndexBuilder:
         """Report if the index is ready for deployment."""
         if self.validation_split:
             return
-        reader = AnnoyReader(self.detector, self.model)
+        reader = ANNReader(self.detector, self.model)
         print(f"Index ready for deployment: {reader.index_dir}")
 
 

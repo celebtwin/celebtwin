@@ -9,7 +9,7 @@ from typing_extensions import TypedDict
 from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
-from celebtwin.logic.ann import AnnoyReader
+from celebtwin.logic.ann import ANNReader
 from celebtwin.logic.preproc_face import NoFaceDetectedError
 from celebtwin.logic.registry import load_latest_experiment
 
@@ -97,10 +97,10 @@ def predict_annoys(file: UploadFile, model: FaceModel = FaceModel.facenet) \
 
 
 @cache
-def load_annoy(model: FaceModel) -> AnnoyReader:
+def load_annoy(model: FaceModel) -> ANNReader:
     # Load the production index. We do not support unloading. Resources are
     # released when the process exits.
-    reader = AnnoyReader("skip", model.as_deepface_model())
+    reader = ANNReader("skip", model.as_deepface_model())
     reader.load()
     return reader
 

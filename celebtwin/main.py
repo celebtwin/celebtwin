@@ -149,10 +149,10 @@ def pred_annoy(image_path: Path, align: str, model: str) -> None:
     if align == "builtin":
         align = "skip"
     print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
-    from celebtwin.logic.ann import AnnoyReader
+    from celebtwin.logic.ann import ANNReader
     from celebtwin.logic.preproc_face import NoFaceDetectedError
     print(Fore.MAGENTA + "⭐️ Predicting" + Style.RESET_ALL)
-    with AnnoyReader(align, model) as reader:
+    with ANNReader(align, model) as reader:
         try:
             class_, name = reader.find_image(image_path)
         except NoFaceDetectedError as error:
