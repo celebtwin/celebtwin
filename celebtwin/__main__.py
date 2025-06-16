@@ -1,5 +1,5 @@
 """Entry point for command line."""
 
-from celebtwin.main import cli
+from celebtwin.main import main
 
-cli()
+main()

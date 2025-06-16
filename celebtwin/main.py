@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 
@@ -6,7 +7,7 @@ from colorama import Fore, Style
 
 
 @click.group()
-def cli():
+def cli() -> None:
     pass
 
 
@@ -125,6 +126,7 @@ annoy_model_option = click.option(
     "-m", "--model", type=embedding_choice, default="Facenet",
     help="Model used to generate embeddings, defaults to Facenet.")
 
+
 @cli.command()
 @annoy_align_option
 @annoy_model_option
@@ -136,6 +138,7 @@ def build_annoy(align: str, model: str) -> None:
     from celebtwin.ml_logic.annoy import build_annoy_index
     print(Fore.MAGENTA + "⭐️ Building Annoy index" + Style.RESET_ALL)
     build_annoy_index(align, model)
+
 
 @cli.command()
 @annoy_align_option
@@ -158,14 +161,15 @@ def pred_annoy(image_path: Path, align: str, model: str) -> None:
     print(Fore.GREEN + f"Closest image: {class_}/{name}" + Style.RESET_ALL)
 
 
-if __name__ == "__main__":
-    try:
+def main():
+    if not os.getenv('DEBUG'):
         cli()
-    except Exception:
-        import sys
-        import traceback
-
-        import ipdb  # type: ignore
-        extype, value, tb = sys.exc_info()
-        traceback.print_exc()
-        ipdb.post_mortem(tb)
+    else:
+        try:
+            cli()
+        except Exception:
+            import traceback
+            import ipdb  # type: ignore
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            traceback.print_exc()
+            ipdb.post_mortem(exc_traceback)
