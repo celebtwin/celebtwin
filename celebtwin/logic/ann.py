@@ -206,16 +206,15 @@ class ANNIndexBuilder:
                 vector = self.deepface_cache.get(path)
                 if vector == "noface":
                     continue
-                self._add_item(ann_writer, path, vector)
+                class_, name = path.parent.name, path.name
+                ann_writer.add_item(class_, name, vector)
+                self._item_added()
 
     def _iter_images_to_index(self) -> Iterator[Path]:
         yield from self.path_list
 
-    def _add_item(
-            self, ann_writer: 'ANNWriter', path: Path, vector: list[float]) \
-            -> None:
-        class_, name = path.parent.name, path.name
-        ann_writer.add_item(class_, name, vector)
+    def _item_added(self) -> None:
+        pass
 
     def _report(self) -> None:
         """Report that the index is ready for deployment."""
@@ -250,21 +249,19 @@ class ANNIndexEvaluator(ANNIndexBuilder):
                 random.sample(class_paths, n_validation))
 
     def _build_ann_index(self) -> None:
-        self._total_count = len(self.path_list) - len(self._validation_set)
+        total_count = len(self.path_list) - len(self._validation_set)
         super()._build_ann_index()
-        detection_rate = self._detected_count / self._total_count
-        print(f"Detected {self._detected_count} faces in {self._total_count}"
+        detection_rate = self._detected_count / total_count
+        print(f"Detected {self._detected_count} faces in {total_count}"
               f" training images ({detection_rate:.2%})")
 
     def _iter_images_to_index(self) -> Iterator[Path]:
         yield from (p for p in super()._iter_images_to_index()
                     if p not in self._validation_set)
 
-    def _add_item(
-            self, ann_writer: 'ANNWriter', path: Path, vector: list[float]) \
-                -> None:
+    def _item_added(self) -> None:
+        super()._item_added()
         self._detected_count += 1
-        super()._add_item(ann_writer, path, vector)
 
     def _report(self) -> None:
         """Report the accuracy of the ANN index on the validation set."""
