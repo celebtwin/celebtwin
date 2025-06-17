@@ -107,7 +107,7 @@ def load_annoy(model: FaceModel) -> ANNReader:
 @app.on_event("startup")
 def preload_annoy():
     print("Preloading models...")
-    from deepface.modules.modeling import build_model
+    from deepface.modules.modeling import build_model  # type: ignore
     for model in FaceModel:
         build_model(
             task="facial_recognition", model_name=model.as_deepface_model())

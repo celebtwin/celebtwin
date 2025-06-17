@@ -8,7 +8,7 @@ from multiprocessing.pool import Pool
 from pathlib import Path
 from typing import Iterator
 
-import hnswlib
+import hnswlib  # type: ignore
 import numpy as np
 from annoy import AnnoyIndex
 from deepface import DeepFace  # type: ignore
@@ -258,7 +258,7 @@ class DeepfaceCache:
         with open(pickle_path, 'rb') as pickle_file:
             return pickle.load(pickle_file)
 
-    def set(self, path: Path, value):
+    def set(self, path: Path, value) -> None:
         """Set the cache for the given path with the provided value."""
         pickle_path = self._pickle_path(path)
         tmp_path = pickle_path.with_suffix('.tmp')
@@ -302,10 +302,6 @@ class ANNWriter:
         self.csv_writer.writerow([self.counter, class_, name])
         self.index.add_item(self.counter, vector)
         self.counter += 1
-
-
-def get_strategy_class() -> 'type[ANNStrategy]':
-    return HnswStrategy
 
 
 class ANNStrategy:
