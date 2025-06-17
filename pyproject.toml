@@ -33,6 +33,7 @@ dependencies = [
   "deepface",
   "fastapi",
   "google-cloud-storage",
+  "hnswlib",
   "keras",
   "mtcnn",
   "numpy",

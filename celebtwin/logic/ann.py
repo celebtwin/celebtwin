@@ -8,6 +8,7 @@ from multiprocessing.pool import Pool
 from pathlib import Path
 from typing import Iterator
 
+import hnswlib
 import numpy as np
 from annoy import AnnoyIndex
 from deepface import DeepFace  # type: ignore
@@ -194,8 +195,9 @@ class ANNIndexBuilder:
     def _build_ann_index(self) -> None:
         """Build the ANN index for the dataset."""
         to_index = list(self._iter_images_to_index())
+        print("Indexing images...")
         with ANNWriter(self.detector, self.model, len(to_index)) as ann_writer:
-            for path in to_index:
+            for path in tqdm(to_index):
                 vector = self.deepface_cache.get(path)
                 if vector == "noface":
                     continue
@@ -332,7 +334,7 @@ class ANNWriter:
         if self.csv_file is not None:
             self.csv_file.close()
         if exc_type is None:
-            print(f"Built Annoy index with {self.counter} items.")
+            print(f"Built ANN index with {self.counter} items.")
             self.index.commit()
             self.tmp_csv_path.rename(self.csv_path)
         else:
@@ -346,7 +348,7 @@ class ANNWriter:
 
 
 def get_strategy_class() -> 'type[ANNStrategy]':
-    return AnnoyStrategy
+    return HnswStrategy
 
 
 class ANNStrategy:
@@ -408,7 +410,10 @@ class ANNWriterBackend:
 
     def abort(self):
         self._abort()
-        self._tmp_path.unlink()
+        try:
+            self._tmp_path.unlink()
+        except FileNotFoundError:
+            pass
 
     def _abort(self) -> None:
         raise NotImplementedError
@@ -471,3 +476,60 @@ class AnnoyStrategy(ANNStrategy):
             self.detector, self.model, normalization, 'annoy',
             str(self.annoy_trees), self.annoy_metric])
 
+
+class HnswReaderBackend(ANNReaderBackend):
+    """Concrete ANN index reader backend using hnswlib."""
+
+    def __init__(self, path: Path, dimension: int):
+        super().__init__(path, dimension)
+        print(f"Loading HNSW index from {self._index_path}")
+        space = HnswStrategy.hnsw_space
+        self._index = hnswlib.Index(space=space, dim=dimension)
+        self._index.load_index(str(self._index_path))
+        self._index.set_ef(HnswStrategy.hnsw_ef)
+
+    def close(self) -> None:
+        self._index = None
+
+    def find_neighbor(self, vector: list[float]) -> int:
+        labels, distances = self._index.knn_query([vector], k=1)
+        assert len(labels) == 1
+        return labels[0].item()
+
+
+class HnswWriterBackend(ANNWriterBackend):
+    """Concrete ANN index writer backend using hnswlib."""
+
+    def __init__(self, path: Path, dimension: int, size: int):
+        super().__init__(path, dimension, size)
+        space = HnswStrategy.hnsw_space
+        self._index = hnswlib.Index(space=space, dim=dimension)
+        self._index.init_index(size, HnswStrategy.hnsw_m, HnswStrategy.hnsw_ef)
+        self._index.set_ef(HnswStrategy.hnsw_ef)
+
+    def _commit(self) -> None:
+        self._index.save_index(str(self._tmp_path))
+
+    def _abort(self) -> None:
+        self._index = None
+
+    def add_item(self, value: int, vector: list[float]) -> None:
+        self._index.add_items([vector], [value])
+
+
+
+class HnswStrategy(ANNStrategy):
+    """Strategy for HNSW index."""
+
+    _file_name = "index.hnsw"
+    _reader_type = HnswReaderBackend
+    _writer_type = HnswWriterBackend
+    hnsw_space = "l2"
+    hnsw_ef = 100
+    hnsw_m = 48
+
+    def identifier(self) -> str:
+        normalization = normalization_of[self.model]
+        return '-'.join([
+            self.detector, self.model, normalization, 'hnsw',
+            str(self.hnsw_m), str(self.hnsw_ef)])
