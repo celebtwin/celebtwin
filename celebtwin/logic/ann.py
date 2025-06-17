@@ -18,7 +18,7 @@ from celebtwin.logic.preproc_face import (
     NoFaceDetectedError, preprocess_face_aligned)
 from celebtwin.params import LOCAL_REGISTRY_PATH
 
-ann_dir = Path(LOCAL_REGISTRY_PATH) / "annoy"
+ann_dir = Path(LOCAL_REGISTRY_PATH) / "ann"
 deepface_dir = Path(LOCAL_REGISTRY_PATH) / "deepface"
 
 
