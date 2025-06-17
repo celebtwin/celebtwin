@@ -1,4 +1,5 @@
 # Error on undefined variables, or if any command in a pipe fails.
+SHELL := /bin/bash -c
 .SHELLFLAGS := -u -o pipefail
 
 .DELETE_ON_ERROR:  # Delete target if its recipe errors out
