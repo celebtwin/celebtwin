@@ -7,14 +7,23 @@ MAKEFLAGS += --no-builtin-rules
 
 .PHONY: help
 help:
-	@echo "make setup   - creates the virtual env and install packages"
-	@echo "make dataset - download the raw dataset"
-	@echo "make train   - train a model"
-	@echo "make run_api - start web services"
-	@echo "make lint    - run code analysis and style checks"
-	@echo "make requirements - install requirements"
-	@echo "make pip-compile  - compile requirements files"
-	@echo "make ssh       - ssh into the instance"
+	@echo "make setup          - creates the virtual env and install packages"
+	@echo "make dataset        - download the raw dataset"
+	@echo "make train          - train a model"
+	@echo "make run_api        - start web services"
+	@echo "make lint           - run code analysis and style checks"
+	@echo "make requirements   - install requirements"
+	@echo "make pip-compile    - compile requirements files"
+	@echo "make image          - build the Docker image"
+	@echo "make image-run      - run the Docker image"
+	@echo "make image-prod     - build the Docker image for production"
+	@echo "make image-create-repo - create the Docker repository"
+	@echo "make image-auth     - authenticate to the Docker repository"
+	@echo "make image-push     - push the Docker image to the repository"
+	@echo "make image-deploy   - deploy the Docker image to Google Cloud Run"
+	@echo "make start-instance - start up the instance"
+	@echo "make stop-instance  - stop the instance"
+	@echo "make ssh            - ssh into the instance"
 
 PY_VERSION=3.10.17
 .PHONY: setup
@@ -127,6 +136,14 @@ image-deploy:
 		--memory=16G \
 		--concurrency=16 \
 		--allow-unauthenticated
+
+.PHONY: start-instance
+start-instance:
+	gcloud compute instances start --zone=$(ZONE) $(INSTANCE)
+
+.PHONY: stop-instance
+stop-instance:
+	gcloud compute instances stop --zone=$(ZONE) $(INSTANCE)
 
 .PHONY: ssh
 ssh:
