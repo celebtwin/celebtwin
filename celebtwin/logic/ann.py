@@ -1,8 +1,6 @@
 """Find faces with Approximate Nearest Neighbor (ANN) search."""
 
 import csv
-from enum import Enum
-import functools
 import pickle
 import random
 from itertools import groupby
@@ -20,45 +18,10 @@ from celebtwin.logic.data import AlignedDatasetFull, PinsDataset
 from celebtwin.logic.preproc_face import (
     NoFaceDetectedError, preprocess_face_aligned)
 from celebtwin.params import LOCAL_REGISTRY_PATH
+from celebtwin.logic.annenums import Detector, Model
 
 ann_dir = Path(LOCAL_REGISTRY_PATH) / "ann"
 deepface_dir = Path(LOCAL_REGISTRY_PATH) / "deepface"
-
-
-embedding_size_of = {
-    'Facenet': 128,
-    'Facenet512': 512,
-    'VGG-Face': 4096,
-    "OpenFace": 128,
-    "DeepFace": 4096,
-    "DeepID": 512,  # or 4096 depending on the version
-    "Dlib": 128,
-    "ArcFace": 512,
-    "SFace": 512,
-    "GhostFaceNet": 512,
-}
-
-normalization_of = {
-    'Facenet': 'Facenet2018',
-    'Facenet512': 'Facenet2018',
-    'VGG-Face': 'VGGFace2',
-    "OpenFace": 'Facenet2018',
-}
-
-
-class ANNBackend(str, Enum):
-    ANNOY = "annoy"
-    BRUTE_FORCE = "brute"
-    HNSW = "hnsw"
-
-    @functools.cached_property
-    def strategy_class(self) -> 'type[ANNStrategy]':
-        if self == ANNBackend.ANNOY:
-            return AnnoyStrategy
-        elif self == ANNBackend.BRUTE_FORCE:
-            return BruteForceStrategy
-        elif self == ANNBackend.HNSW:
-            return HnswStrategy
 
 
 class ANNReader:
@@ -97,7 +60,7 @@ class ANNReader:
 
         Raise NoFaceDetectedError if no face is detected in the image.
         """
-        if self.strategy.detector == "skip":
+        if self.strategy.detector == Detector.SKIP:
             # If the detector is "skip" use our internal face detection.
             rgb_face = preprocess_face_aligned(path)
             image_data = rgb_face[..., ::-1]  # Convert RGB to BGR
@@ -126,7 +89,7 @@ class ANNIndexBuilder:
         self._report()
 
     def _build_path_lists(self) -> None:
-        if self.strategy.detector == "skip":
+        if self.strategy.detector == Detector.SKIP:
             aligned_dataset = AlignedDatasetFull()
             downloaded = aligned_dataset.try_download()
             assert downloaded
@@ -156,7 +119,7 @@ class ANNIndexBuilder:
                 pass
 
     def _fill_cache_for_path(self, path: Path) -> None:
-        if self.strategy.detector == "skip":
+        if self.strategy.detector == Detector.SKIP:
             key = (path.parent.name, path.name)
             if key not in self.aligned_entries:
                 self.deepface_cache.set(path, "noface")
@@ -328,17 +291,17 @@ class ANNStrategy:
     _reader_type: 'type[ANNReaderBackend]'
     _writer_type: 'type[ANNWriterBackend]'
 
-    def __init__(self, detector: str, model: str):
+    def __init__(self, detector: Detector, model: Model):
         self.detector = detector
         self.model = model
 
     @property
     def normalization(self) -> str:
-        return normalization_of[self.model]
+        return self.model.normalization
 
     @property
     def dimension(self) -> int:
-        return embedding_size_of[self.model]
+        return self.model.embedding_size
 
     def identifier(self) -> str:
         raise NotImplementedError
@@ -363,7 +326,7 @@ class ANNStrategy:
         assert len(result_list) == 1, \
             f"Expected exactly one face per image, got {len(result_list)}"
         result = result_list[0]
-        if self.detector != "skip" and result["face_confidence"] == 0:
+        if self.detector != Detector.SKIP and result["face_confidence"] == 0:
             raise NoFaceDetectedError()
         return result["embedding"]
 
@@ -469,9 +432,8 @@ class AnnoyStrategy(ANNStrategy):
     annoy_trees = 100
 
     def identifier(self) -> str:
-        normalization = normalization_of[self.model]
         return '-'.join([
-            self.detector, self.model, normalization, 'annoy',
+            self.detector, self.model, self.model.normalization, 'annoy',
             str(self.annoy_trees), self.annoy_metric])
 
 
@@ -529,9 +491,8 @@ class HnswStrategy(ANNStrategy):
     hnsw_m = 48
 
     def identifier(self) -> str:
-        normalization = normalization_of[self.model]
         return '-'.join([
-            self.detector, self.model, normalization, 'hnsw',
+            self.detector, self.model, self.model.normalization, 'hnsw',
             str(self.hnsw_m), str(self.hnsw_ef)])
 
 
@@ -585,5 +546,5 @@ class BruteForceStrategy(ANNStrategy):
     bf_space = "l2"
 
     def identifier(self) -> str:
-        normalization = normalization_of[self.model]
-        return '-'.join([self.detector, self.model, normalization, 'brute'])
+        return '-'.join([
+            self.detector, self.model, self.model.normalization, 'brute'])

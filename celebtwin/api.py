@@ -9,7 +9,8 @@ from typing_extensions import TypedDict
 from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
-from celebtwin.logic.ann import ANNReader, ANNBackend
+from celebtwin.logic.ann import ANNReader
+from celebtwin.logic.annenums import ANNBackend, Detector, Model
 from celebtwin.logic.preproc_face import NoFaceDetectedError
 from celebtwin.logic.registry import load_latest_experiment
 
@@ -58,13 +59,14 @@ class FaceModel(str, Enum):
     facenet = "facenet"
     vggface = "vggface"
 
-    def as_deepface_model(self):
+    @property
+    def deepface_model(self) -> Model:
         return _deepface_mapping[self]
 
 
 _deepface_mapping = {
-    FaceModel.facenet: "Facenet",
-    FaceModel.vggface: "VGG-Face"
+    FaceModel.facenet: Model.FACENET,
+    FaceModel.vggface: Model.VGG_FACE
 }
 
 
@@ -81,7 +83,7 @@ ClassNameResponse = TypedDict(
 
 @app.post("/predict-annoy/{model}")
 @app.post("/predict-annoy/")
-def predict_annoys(file: UploadFile, model: FaceModel = FaceModel.facenet) \
+def predict_annoy(file: UploadFile, model: FaceModel = FaceModel.facenet) \
         -> ClassNameResponse | ErrorResponse:
     with NamedTemporaryFile(delete=False) as temp_file:
         temp_file.write(file.file.read())
@@ -101,7 +103,7 @@ def load_ann(model: FaceModel) -> ANNReader:
     # Load the production index. We do not support unloading. Resources are
     # released when the process exits.
     strategy = ANNBackend.HNSW.strategy_class(
-        "skip", model.as_deepface_model())
+        Detector.SKIP, model.deepface_model)
     return ANNReader(strategy)
 
 

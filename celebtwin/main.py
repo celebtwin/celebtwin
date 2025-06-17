@@ -5,6 +5,8 @@ from pathlib import Path
 import click
 from colorama import Fore, Style
 
+from celebtwin.logic.annenums import Detector, Model, ANNBackend
+
 
 @click.group()
 def cli() -> None:
@@ -112,22 +114,19 @@ def pred(image_path: Path) -> None:
           + Style.RESET_ALL)
 
 
-detector_choice = click.Choice([
-    'opencv', 'retinaface', 'mtcnn', 'ssd', 'dlib', 'mediapipe', 'yolov8',
-    'yolov11n', 'yolov11s', 'yolov11m', 'centerface', 'builtin'])
+detector_choice = click.Choice(
+    [d.value for d in Detector if d != Detector.SKIP] + ["builtin"])
 ann_align_option = click.option(
     "-a", "--align", type=detector_choice, default="builtin",
     help="""Detector backend for face alignment, defaults to built-in.""")
 
-model_choice = click.Choice([
-    "VGG-Face", "Facenet", "Facenet512", "OpenFace", "DeepFace", "DeepID",
-    "Dlib", "ArcFace", "SFace", "GhostFaceNet"])
+model_choice = click.Choice([m.value for m in Model])
 ann_model_option = click.option(
     "-m", "--model", type=model_choice, default="Facenet",
     help="Model used to generate embeddings, defaults to Facenet.")
 
 ann_backend_option = click.option(
-    "-b", "--backend", type=click.Choice(['annoy', 'brute', 'hnsw']),
+    "-b", "--backend", type=click.Choice([b.value for b in ANNBackend]),
     default="annoy",
     help="ANNBackend used to build the index, defaults to annoy.")
 
@@ -137,14 +136,16 @@ ann_backend_option = click.option(
 @ann_model_option
 @ann_backend_option
 @click.argument("validation_split", type=float)
-def eval_ann(align: str, model: str, backend: str, validation_split: float) -> None:
+def eval_ann(
+        align: str, model: str, backend: str, validation_split: float) -> None:
     """Evaluate the ANN index."""
     if align == "builtin":
-        align = "skip"
+        align = Detector.SKIP.value
     print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
-    from celebtwin.logic.ann import ANNIndexEvaluator, ANNBackend
+    from celebtwin.logic.ann import ANNIndexEvaluator
     print(Fore.MAGENTA + "⭐️ Evaluating ANN index" + Style.RESET_ALL)
-    strategy = ANNBackend(backend).strategy_class(align, model)
+    strategy = ANNBackend.from_value(backend).strategy_class(
+        Detector.from_value(align), Model.from_value(model))
     ANNIndexEvaluator(strategy, validation_split).run()
 
 
@@ -155,11 +156,12 @@ def eval_ann(align: str, model: str, backend: str, validation_split: float) -> N
 def build_ann(align: str, model: str, backend: str) -> None:
     """Build an ANN index for the dataset."""
     if align == "builtin":
-        align = "skip"
+        align = Detector.SKIP.value
     print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
-    from celebtwin.logic.ann import ANNIndexBuilder, ANNBackend
+    from celebtwin.logic.ann import ANNIndexBuilder
     print(Fore.MAGENTA + "⭐️ Building ANN index" + Style.RESET_ALL)
-    strategy = ANNBackend(backend).strategy_class(align, model)
+    strategy = ANNBackend.from_value(backend).strategy_class(
+        Detector.from_value(align), Model.from_value(model))
     ANNIndexBuilder(strategy).run()
 
 
@@ -168,15 +170,18 @@ def build_ann(align: str, model: str, backend: str) -> None:
 @ann_model_option
 @ann_backend_option
 @click.argument("image_path", type=click.Path(exists=True))
-def pred_ann(image_path: Path, align: str, model: str, backend: str) -> None:
+def pred_ann(
+        image_path: Path, align: str, model: str, backend: str) -> None:
     """Predict the class of a single image using embedding proximity."""
     if align == "builtin":
-        align = "skip"
+        align = Detector.SKIP.value
     print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
-    from celebtwin.logic.ann import ANNReader, ANNBackend
+    from celebtwin.logic.ann import ANNReader
     from celebtwin.logic.preproc_face import NoFaceDetectedError
     print(Fore.MAGENTA + "⭐️ Predicting" + Style.RESET_ALL)
-    strategy = ANNBackend(backend).strategy_class(align, model)
+    strategy = ANNBackend.from_value(backend).strategy_class(
+        Detector.from_value(align), Model.from_value(model))
+    print(strategy)
     with ANNReader(strategy) as reader:
         try:
             class_, name = reader.find_image(image_path)
