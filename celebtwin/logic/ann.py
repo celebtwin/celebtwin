@@ -533,3 +533,54 @@ class HnswStrategy(ANNStrategy):
         return '-'.join([
             self.detector, self.model, normalization, 'hnsw',
             str(self.hnsw_m), str(self.hnsw_ef)])
+
+
+class BruteForceReaderBackend(ANNReaderBackend):
+    """Concrete ANN index reader backend using brute force."""
+
+    def __init__(self, path: Path, dimension: int):
+        super().__init__(path, dimension)
+        print(f"Loading BruteForce index from {self._index_path}")
+        space = BruteForceStrategy.bf_space
+        self._index = hnswlib.BFIndex(space=space, dim=dimension)
+        self._index.load_index(str(self._index_path))
+
+    def close(self) -> None:
+        self._index = None
+
+    def find_neighbor(self, vector: list[float]) -> int:
+        labels, distances = self._index.knn_query([vector], k=1)
+        assert len(labels) == 1
+        return labels[0].item()
+
+
+class BruteForceWriterBackend(ANNWriterBackend):
+    """Concrete ANN index writer backend using brute force."""
+
+    def __init__(self, path: Path, dimension: int, size: int):
+        super().__init__(path, dimension, size)
+        space = BruteForceStrategy.bf_space
+        self._index = hnswlib.BFIndex(space=space, dim=dimension)
+        self._index.init_index(size)
+
+    def _commit(self) -> None:
+        self._index.save_index(str(self._tmp_path))
+
+    def _abort(self) -> None:
+        self._index = None
+
+    def add_item(self, value: int, vector: list[float]) -> None:
+        self._index.add_items([vector], [value])
+
+
+class BruteForceStrategy(ANNStrategy):
+    """Strategy for brute force index."""
+
+    _file_name = "index.brute"
+    _reader_type = BruteForceReaderBackend
+    _writer_type = BruteForceWriterBackend
+    bf_space = "l2"
+
+    def identifier(self) -> str:
+        normalization = normalization_of[self.model]
+        return '-'.join([self.detector, self.model, normalization, 'brute'])
