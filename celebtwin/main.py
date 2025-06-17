@@ -136,9 +136,10 @@ def eval_ann(align: str, model: str, validation_split: float) -> None:
     if align == "builtin":
         align = "skip"
     print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
-    from celebtwin.logic.ann import ANNIndexEvaluator
+    from celebtwin.logic.ann import ANNIndexEvaluator, AnnoyStrategy
     print(Fore.MAGENTA + "⭐️ Evaluating ANN index" + Style.RESET_ALL)
-    ANNIndexEvaluator(align, model, validation_split).run()
+    strategy = AnnoyStrategy(align, model)
+    ANNIndexEvaluator(strategy, validation_split).run()
 
 
 @cli.command()
@@ -149,9 +150,10 @@ def build_ann(align: str, model: str) -> None:
     if align == "builtin":
         align = "skip"
     print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
-    from celebtwin.logic.ann import ANNIndexBuilder
+    from celebtwin.logic.ann import ANNIndexBuilder, AnnoyStrategy
     print(Fore.MAGENTA + "⭐️ Building ANN index" + Style.RESET_ALL)
-    ANNIndexBuilder(align, model).run()
+    strategy = AnnoyStrategy(align, model)
+    ANNIndexBuilder(strategy).run()
 
 
 @cli.command()
@@ -163,10 +165,11 @@ def pred_ann(image_path: Path, align: str, model: str) -> None:
     if align == "builtin":
         align = "skip"
     print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
-    from celebtwin.logic.ann import ANNReader
+    from celebtwin.logic.ann import ANNReader, AnnoyStrategy
     from celebtwin.logic.preproc_face import NoFaceDetectedError
     print(Fore.MAGENTA + "⭐️ Predicting" + Style.RESET_ALL)
-    with ANNReader(align, model) as reader:
+    strategy = AnnoyStrategy(align, model)
+    with ANNReader(strategy) as reader:
         try:
             class_, name = reader.find_image(image_path)
         except NoFaceDetectedError as error:

@@ -47,33 +47,23 @@ normalization_of = {
 class ANNReader:
     """Search in a, previously created, Approximate Nearest Neighbor index."""
 
-    def __init__(self, detector: str, model: str):
-        self.detector: str = detector
-        self.model: str = model
-        self.strategy = get_strategy_class()(detector, model)
-        self.dimension: int = embedding_size_of[model]
+    def __init__(self, strategy: 'ANNStrategy'):
+        self.strategy = strategy
         self.csv_path: Path = self.strategy.metadata_path()
-        self.index: ANNReaderBackend | None = None
-        self.metadata: dict[int, tuple[str, str]] | None = None
-
-    def load(self) -> None:
-        self.index = self.strategy.reader(self.dimension)
+        self.index = self.strategy.reader()
         print(f"Loading metadata from {self.csv_path}")
-        csv_file = open(self.csv_path, 'rt', encoding='utf-8')
-        with csv_file:
-            self.metadata = metadata = {}
+        self.metadata: dict[int, tuple[str, str]] = {}
+        with open(self.csv_path, 'rt', encoding='utf-8') as csv_file:
             for item, class_, name in csv.reader(csv_file):
-                assert int(item) not in metadata, \
-                    f"Duplicate item {item} in metadata"
-                metadata[int(item)] = (class_, name)
+                if int(item) in self.metadata:
+                    raise ValueError(f"Duplicate item {item} in metadata")
+                self.metadata[int(item)] = (class_, name)
 
     def close(self) -> None:
-        if self.index is not None:
-            self.index.close()
-        self.metadata = None
+        self.index.close()
+        self.metadata.clear()
 
     def __enter__(self):
-        self.load()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -81,9 +71,8 @@ class ANNReader:
 
     def find_vector(self, vector: list[float]) -> tuple[str, str]:
         """Return the class and name of the entry closest to the vector."""
-        assert self.index is not None
-        assert self.metadata is not None
         value = self.index.find_neighbor(vector)
+        assert self.metadata is not None
         return self.metadata[value]
 
     def find_image(self, path: Path) -> tuple[str, str]:
@@ -91,42 +80,26 @@ class ANNReader:
 
         Raise NoFaceDetectedError if no face is detected in the image.
         """
-        if self.detector == "skip":
+        if self.strategy.detector == "skip":
             # If the detector is "skip" use our internal face detection.
             rgb_face = preprocess_face_aligned(path)
             image_data = rgb_face[..., ::-1]  # Convert RGB to BGR
-            vector = self._represent(image_data)
+            vector = self.strategy.represent(image_data)
         else:
-            vector = self._represent(str(path))
-        assert len(vector) == self.dimension, \
-            f"Expected vector of size {self.dimension}, got {len(vector)}"
+            vector = self.strategy.represent(str(path))
+        if len(vector) != self.strategy.dimension:
+            raise ValueError(
+                f"Expected vector of size {self.strategy.dimension}, "
+                f"got {len(vector)}")
         return self.find_vector(vector)
-
-    def _represent(self, image: np.ndarray | str) -> list[float]:
-        """Get the embedding for the given image."""
-        result_list = DeepFace.represent(
-            img_path=image,
-            model_name=self.model,
-            detector_backend=self.detector,
-            enforce_detection=False,
-            max_faces=1)
-        assert len(result_list) == 1, \
-            f"Expected exactly one face per image, got {len(result_list)}"
-        result = result_list[0]
-        if self.detector != "skip" and result["face_confidence"] == 0:
-            raise NoFaceDetectedError()
-        return result["embedding"]
 
 
 class ANNIndexBuilder:
     """Compute representation vectors of faces and build ANN index."""
 
-    def __init__(self, detector: str, model: str):
-        self.detector = detector
-        self.model = model
-        self.normalization = normalization_of[model]
-        self.deepface_cache = DeepfaceCache(
-            detector, model, self.normalization)
+    def __init__(self, strategy: 'ANNStrategy'):
+        self.strategy = strategy
+        self.deepface_cache = DeepfaceCache(strategy)
         self.aligned_entries: dict[tuple[str, str], Path] = {}
 
     def run(self) -> None:
@@ -136,7 +109,7 @@ class ANNIndexBuilder:
         self._report()
 
     def _build_path_lists(self) -> None:
-        if self.detector == "skip":
+        if self.strategy.detector == "skip":
             aligned_dataset = AlignedDatasetFull()
             downloaded = aligned_dataset.try_download()
             assert downloaded
@@ -166,37 +139,26 @@ class ANNIndexBuilder:
                 pass
 
     def _fill_cache_for_path(self, path: Path) -> None:
-        if self.detector == "skip":
+        if self.strategy.detector == "skip":
             key = (path.parent.name, path.name)
             if key not in self.aligned_entries:
                 self.deepface_cache.set(path, "noface")
                 return
-            result = self._represent(self.aligned_entries[key])
+            result = self.strategy.represent(self.aligned_entries[key])
         else:
-            result = self._represent(path)
-            if result['face_confidence'] == 0:
+            try:
+                result = self.strategy.represent(path)
+            except NoFaceDetectedError:
                 print(f"Warning: No face detected in {path}. Skipping.")
                 self.deepface_cache.set(path, "noface")
                 return
-        self.deepface_cache.set(path, result["embedding"])
-
-    def _represent(self, path: Path) -> dict:
-        result_list = DeepFace.represent(
-            img_path=str(path),
-            model_name=self.model,
-            detector_backend=self.detector,
-            normalization=self.normalization,
-            enforce_detection=False,
-            max_faces=1)
-        assert len(result_list) == 1, \
-            f"Expected exactly one face per image, got {len(result_list)}"
-        return result_list[0]
+        self.deepface_cache.set(path, result["embedding"])  # type: ignore
 
     def _build_ann_index(self) -> None:
         """Build the ANN index for the dataset."""
         to_index = list(self._iter_images_to_index())
         print("Indexing images...")
-        with ANNWriter(self.detector, self.model, len(to_index)) as ann_writer:
+        with ANNWriter(self.strategy, len(to_index)) as ann_writer:
             for path in tqdm(to_index):
                 vector = self.deepface_cache.get(path)
                 if vector == "noface":
@@ -213,8 +175,7 @@ class ANNIndexBuilder:
 
     def _report(self) -> None:
         """Report that the index is ready for deployment."""
-        strategy = get_strategy_class()(self.detector, self.model)
-        print(f"Index ready for deployment: {strategy.ann_subdir()}")
+        print(f"Index ready for deployment: {self.strategy.ann_subdir()}")
 
 
 class ANNIndexEvaluator(ANNIndexBuilder):
@@ -227,8 +188,8 @@ class ANNIndexEvaluator(ANNIndexBuilder):
     useful to compare models and tune ANN backends.
     """
 
-    def __init__(self, detector: str, model: str, validation_split: float):
-        super().__init__(detector, model)
+    def __init__(self, strategy: 'ANNStrategy', validation_split: float):
+        super().__init__(strategy)
         self._validation_split = validation_split
         self._validation_set: set[Path] = set()
         self._detected_count = 0
@@ -263,7 +224,7 @@ class ANNIndexEvaluator(ANNIndexBuilder):
         total_count = len(self._validation_set)
         detected_count = 0
         correct_count = 0
-        with ANNReader(self.detector, self.model) as annoy_reader:
+        with ANNReader(self.strategy) as annoy_reader:
             print("Computing accuracy...")
             for path in tqdm(self._validation_set):
                 vector = self.deepface_cache.get(path)
@@ -283,11 +244,9 @@ class ANNIndexEvaluator(ANNIndexBuilder):
 class DeepfaceCache:
     """Cache for Deepface results to avoid recomputing embeddings."""
 
-    def __init__(self, detector: str, model: str, normalization: str):
-        if normalization == 'base':
-            identifier = f"{detector}-{model}"
-        else:
-            identifier = f"{detector}-{model}-{normalization}"
+    def __init__(self, strategy: 'ANNStrategy'):
+        identifier = "-".join([
+            strategy.detector, strategy.model, strategy.normalization])
         self.cache_dir = deepface_dir / identifier
 
     def _pickle_path(self, path: Path) -> Path:
@@ -313,14 +272,12 @@ class DeepfaceCache:
         return self._pickle_path(path).exists()
 
 
-
 class ANNWriter:
 
-    def __init__(self, detector: str, model: str, size: int):
-        self.dimension = embedding_size_of[model]
-        self.strategy = get_strategy_class()(detector, model)
+    def __init__(self, strategy: 'ANNStrategy', size: int):
+        self.strategy = strategy
         self.strategy.ann_subdir().mkdir(parents=True, exist_ok=True)
-        self.index = self.strategy.writer(self.dimension, size)
+        self.index = self.strategy.writer(size)
         self.csv_path = self.strategy.metadata_path()
         self.tmp_csv_path = self.csv_path.with_suffix('.tmp')
         self.csv_file = open(self.tmp_csv_path, 'wt', encoding='utf-8')
@@ -362,6 +319,14 @@ class ANNStrategy:
         self.detector = detector
         self.model = model
 
+    @property
+    def normalization(self) -> str:
+        return normalization_of[self.model]
+
+    @property
+    def dimension(self) -> int:
+        return embedding_size_of[self.model]
+
     def identifier(self) -> str:
         raise NotImplementedError
 
@@ -374,18 +339,33 @@ class ANNStrategy:
     def index_path(self):
         return self.ann_subdir() / self._file_name
 
-    def reader(self, dimension: int) -> 'ANNReaderBackend':
-        return self._reader_type(self.index_path(), dimension)
+    def represent(self, image: np.ndarray | str | Path) -> list[float]:
+        """Get the embedding for the given image."""
+        result_list = DeepFace.represent(
+            img_path=image,
+            model_name=self.model,
+            detector_backend=self.detector,
+            enforce_detection=False,
+            max_faces=1)
+        assert len(result_list) == 1, \
+            f"Expected exactly one face per image, got {len(result_list)}"
+        result = result_list[0]
+        if self.detector != "skip" and result["face_confidence"] == 0:
+            raise NoFaceDetectedError()
+        return result["embedding"]
 
-    def writer(self, dimension: int, size: int) -> 'ANNWriterBackend':
-        return self._writer_type(self.index_path(), dimension, size)
+    def reader(self) -> 'ANNReaderBackend':
+        return self._reader_type(self)
+
+    def writer(self, size: int) -> 'ANNWriterBackend':
+        return self._writer_type(self, size)
 
 
 class ANNReaderBackend:
     """Abstract base class for ANN index reader backends."""
 
-    def __init__(self, path: Path, dimension: int):
-        self._index_path = path
+    def __init__(self, strategy: ANNStrategy):
+        self.strategy = strategy
 
     def close(self) -> None:
         raise NotImplementedError
@@ -397,9 +377,11 @@ class ANNReaderBackend:
 class ANNWriterBackend:
     """Abstract class for ANN index writer backends."""
 
-    def __init__(self, path: Path, dimension: int, size: int):
-        self._index_path = path
-        self._tmp_path = path.with_suffix(path.suffix + '.tmp')
+    def __init__(self, strategy: ANNStrategy, size: int):
+        self.strategy = strategy
+        self._index_path = strategy.index_path()
+        self._tmp_path = self._index_path.with_suffix(
+            self._index_path.suffix + '.tmp')
 
     def commit(self) -> None:
         self._commit()
@@ -425,12 +407,14 @@ class ANNWriterBackend:
 class AnnoyReaderBackend(ANNReaderBackend):
     """Concrete ANN index reader backend using Annoy."""
 
-    def __init__(self, path: Path, dimension: int):
-        super().__init__(path, dimension)
-        print(f"Loading Annoy index from {self._index_path}")
-        metric = AnnoyStrategy.annoy_metric
-        self._index = AnnoyIndex(dimension, metric)  # type: ignore
-        self._index.load(str(self._index_path))
+    def __init__(self, strategy: ANNStrategy):
+        super().__init__(strategy)
+        index_path = self.strategy.index_path()
+        print(f"Loading Annoy index from {index_path}")
+        assert isinstance(strategy, AnnoyStrategy)
+        metric = strategy.annoy_metric
+        self._index = AnnoyIndex(strategy.dimension, metric)  # type: ignore
+        self._index.load(str(index_path))
 
     def close(self) -> None:
         self._index.unload()
@@ -444,10 +428,11 @@ class AnnoyReaderBackend(ANNReaderBackend):
 class AnnoyWriterBackend(ANNWriterBackend):
     """Concrete ANN index writer backend using Annoy."""
 
-    def __init__(self, path: Path, dimension: int, size: int):
-        super().__init__(path, dimension, size)
-        metric = AnnoyStrategy.annoy_metric
-        self._index = AnnoyIndex(dimension, metric)  # type: ignore
+    def __init__(self, strategy: ANNStrategy, size: int):
+        super().__init__(strategy, size)
+        assert isinstance(strategy, AnnoyStrategy)
+        metric = strategy.annoy_metric
+        self._index = AnnoyIndex(strategy.dimension, metric)  # type: ignore
         self._index.on_disk_build(str(self._tmp_path))
 
     def _commit(self) -> None:
@@ -480,13 +465,15 @@ class AnnoyStrategy(ANNStrategy):
 class HnswReaderBackend(ANNReaderBackend):
     """Concrete ANN index reader backend using hnswlib."""
 
-    def __init__(self, path: Path, dimension: int):
-        super().__init__(path, dimension)
-        print(f"Loading HNSW index from {self._index_path}")
-        space = HnswStrategy.hnsw_space
-        self._index = hnswlib.Index(space=space, dim=dimension)
-        self._index.load_index(str(self._index_path))
-        self._index.set_ef(HnswStrategy.hnsw_ef)
+    def __init__(self, strategy: ANNStrategy):
+        super().__init__(strategy)
+        index_path = self.strategy.index_path()
+        print(f"Loading HNSW index from {index_path}")
+        assert isinstance(strategy, HnswStrategy)
+        space = strategy.hnsw_space
+        self._index = hnswlib.Index(space=space, dim=strategy.dimension)
+        self._index.load_index(str(index_path))
+        self._index.set_ef(strategy.hnsw_ef)
 
     def close(self) -> None:
         self._index = None
@@ -500,12 +487,13 @@ class HnswReaderBackend(ANNReaderBackend):
 class HnswWriterBackend(ANNWriterBackend):
     """Concrete ANN index writer backend using hnswlib."""
 
-    def __init__(self, path: Path, dimension: int, size: int):
-        super().__init__(path, dimension, size)
-        space = HnswStrategy.hnsw_space
-        self._index = hnswlib.Index(space=space, dim=dimension)
-        self._index.init_index(size, HnswStrategy.hnsw_m, HnswStrategy.hnsw_ef)
-        self._index.set_ef(HnswStrategy.hnsw_ef)
+    def __init__(self, strategy: ANNStrategy, size: int):
+        super().__init__(strategy, size)
+        assert isinstance(strategy, HnswStrategy)
+        space = strategy.hnsw_space
+        self._index = hnswlib.Index(space=space, dim=strategy.dimension)
+        self._index.init_index(size, strategy.hnsw_m, strategy.hnsw_ef)
+        self._index.set_ef(strategy.hnsw_ef)
 
     def _commit(self) -> None:
         self._index.save_index(str(self._tmp_path))
@@ -515,7 +503,6 @@ class HnswWriterBackend(ANNWriterBackend):
 
     def add_item(self, value: int, vector: list[float]) -> None:
         self._index.add_items([vector], [value])
-
 
 
 class HnswStrategy(ANNStrategy):
@@ -538,12 +525,14 @@ class HnswStrategy(ANNStrategy):
 class BruteForceReaderBackend(ANNReaderBackend):
     """Concrete ANN index reader backend using brute force."""
 
-    def __init__(self, path: Path, dimension: int):
-        super().__init__(path, dimension)
-        print(f"Loading BruteForce index from {self._index_path}")
-        space = BruteForceStrategy.bf_space
-        self._index = hnswlib.BFIndex(space=space, dim=dimension)
-        self._index.load_index(str(self._index_path))
+    def __init__(self, strategy: ANNStrategy):
+        super().__init__(strategy)
+        index_path = self.strategy.index_path()
+        print(f"Loading BruteForce index from {index_path}")
+        assert isinstance(strategy, BruteForceStrategy)
+        space = strategy.bf_space
+        self._index = hnswlib.BFIndex(space=space, dim=strategy.dimension)
+        self._index.load_index(str(index_path))
 
     def close(self) -> None:
         self._index = None
@@ -557,10 +546,11 @@ class BruteForceReaderBackend(ANNReaderBackend):
 class BruteForceWriterBackend(ANNWriterBackend):
     """Concrete ANN index writer backend using brute force."""
 
-    def __init__(self, path: Path, dimension: int, size: int):
-        super().__init__(path, dimension, size)
-        space = BruteForceStrategy.bf_space
-        self._index = hnswlib.BFIndex(space=space, dim=dimension)
+    def __init__(self, strategy: ANNStrategy, size: int):
+        super().__init__(strategy, size)
+        assert isinstance(strategy, BruteForceStrategy)
+        space = strategy.bf_space
+        self._index = hnswlib.BFIndex(space=space, dim=strategy.dimension)
         self._index.init_index(size)
 
     def _commit(self) -> None:
