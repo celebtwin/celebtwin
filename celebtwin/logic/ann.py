@@ -21,12 +21,7 @@ from celebtwin.params import LOCAL_REGISTRY_PATH
 ann_dir = Path(LOCAL_REGISTRY_PATH) / "annoy"
 deepface_dir = Path(LOCAL_REGISTRY_PATH) / "deepface"
 
-annoy_metric = 'euclidean'
-annoy_trees = 100
 
-
-annoy_name = 'index.ann'
-metadata_name = 'metadata.csv'
 embedding_size_of = {
     'Facenet': 128,
     'Facenet512': 512,
@@ -54,16 +49,14 @@ class ANNReader:
     def __init__(self, detector: str, model: str):
         self.detector: str = detector
         self.model: str = model
-        normalization: str = normalization_of[model]
-        identifier = ann_identifier(detector, model, normalization)
+        self.strategy = get_strategy_class()(detector, model)
         self.dimension: int = embedding_size_of[model]
-        self.index_dir: Path = ann_dir / identifier
-        self.csv_path: Path = self.index_dir / metadata_name
+        self.csv_path: Path = self.strategy.metadata_path()
         self.index: ANNReaderBackend | None = None
         self.metadata: dict[int, tuple[str, str]] | None = None
 
     def load(self) -> None:
-        self.index = AnnoyReaderBackend(self.index_dir, self.dimension)
+        self.index = self.strategy.reader(self.dimension)
         print(f"Loading metadata from {self.csv_path}")
         csv_file = open(self.csv_path, 'rt', encoding='utf-8')
         with csv_file:
@@ -200,9 +193,9 @@ class ANNIndexBuilder:
 
     def _build_ann_index(self) -> None:
         """Build the ANN index for the dataset."""
-        with ANNWriter(self.detector, self.model, self.normalization) \
-                as ann_writer:
-            for path in self._iter_images_to_index():
+        to_index = list(self._iter_images_to_index())
+        with ANNWriter(self.detector, self.model, len(to_index)) as ann_writer:
+            for path in to_index:
                 vector = self.deepface_cache.get(path)
                 if vector == "noface":
                     continue
@@ -218,8 +211,8 @@ class ANNIndexBuilder:
 
     def _report(self) -> None:
         """Report that the index is ready for deployment."""
-        reader = ANNReader(self.detector, self.model)
-        print(f"Index ready for deployment: {reader.index_dir}")
+        strategy = get_strategy_class()(self.detector, self.model)
+        print(f"Index ready for deployment: {strategy.ann_subdir()}")
 
 
 class ANNIndexEvaluator(ANNIndexBuilder):
@@ -318,30 +311,21 @@ class DeepfaceCache:
         return self._pickle_path(path).exists()
 
 
-def ann_identifier(detector: str, model: str, normalization: str):
-    return f'{detector}-{model}-{normalization}-{annoy_trees}-{annoy_metric}'
-
 
 class ANNWriter:
 
-    def __init__(self, detector: str, model: str, normalization: str):
+    def __init__(self, detector: str, model: str, size: int):
         self.dimension = embedding_size_of[model]
-        identifier = ann_identifier(detector, model, normalization)
-        self.ann_subdir = ann_dir / identifier
-        self.ann_subdir.mkdir(parents=True, exist_ok=True)
-        self.csv_path = self.ann_subdir / metadata_name
+        self.strategy = get_strategy_class()(detector, model)
+        self.strategy.ann_subdir().mkdir(parents=True, exist_ok=True)
+        self.index = self.strategy.writer(self.dimension, size)
+        self.csv_path = self.strategy.metadata_path()
         self.tmp_csv_path = self.csv_path.with_suffix('.tmp')
-        self.csv_file = None
-        self.csv_writer = None
-        self.index: ANNWriterBackend | None = None
+        self.csv_file = open(self.tmp_csv_path, 'wt', encoding='utf-8')
+        self.csv_writer = csv.writer(self.csv_file)
         self.counter = 0
 
     def __enter__(self):
-        # Delay creation of the annoy index until the first addition, so we do
-        # not need to know the embedding size ahead of time.
-        self.index = AnnoyWriterBackend(self.ann_subdir, self.dimension)
-        self.csv_file = open(self.tmp_csv_path, 'wt', encoding='utf-8')
-        self.csv_writer = csv.writer(self.csv_file)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -349,29 +333,57 @@ class ANNWriter:
             self.csv_file.close()
         if exc_type is None:
             print(f"Built Annoy index with {self.counter} items.")
-            assert self.index is not None
             self.index.commit()
             self.tmp_csv_path.rename(self.csv_path)
         else:
-            assert self.index is not None
             self.index.abort()
             self.tmp_csv_path.unlink()
 
     def add_item(self, class_: str, name: str, vector: list[float]) -> None:
-        assert self.csv_writer is not None
-        assert self.index is not None
         self.csv_writer.writerow([self.counter, class_, name])
         self.index.add_item(self.counter, vector)
         self.counter += 1
 
 
+def get_strategy_class() -> 'type[ANNStrategy]':
+    return AnnoyStrategy
+
+
+class ANNStrategy:
+    """Abstract base class for ANN index strategies."""
+
+    _file_name: str
+    _reader_type: 'type[ANNReaderBackend]'
+    _writer_type: 'type[ANNWriterBackend]'
+
+    def __init__(self, detector: str, model: str):
+        self.detector = detector
+        self.model = model
+
+    def identifier(self) -> str:
+        raise NotImplementedError
+
+    def ann_subdir(self) -> Path:
+        return ann_dir / self.identifier()
+
+    def metadata_path(self) -> Path:
+        return self.ann_subdir() / "metadata.csv"
+
+    def index_path(self):
+        return self.ann_subdir() / self._file_name
+
+    def reader(self, dimension: int) -> 'ANNReaderBackend':
+        return self._reader_type(self.index_path(), dimension)
+
+    def writer(self, dimension: int, size: int) -> 'ANNWriterBackend':
+        return self._writer_type(self.index_path(), dimension, size)
+
+
 class ANNReaderBackend:
     """Abstract base class for ANN index reader backends."""
 
-    _file_name: str
-
-    def __init__(self, dir_path: Path):
-        self._index_path = dir_path / self._file_name
+    def __init__(self, path: Path, dimension: int):
+        self._index_path = path
 
     def close(self) -> None:
         raise NotImplementedError
@@ -383,11 +395,9 @@ class ANNReaderBackend:
 class ANNWriterBackend:
     """Abstract class for ANN index writer backends."""
 
-    _file_name: str
-
-    def __init__(self, dir_path: Path):
-        self._index_path = dir_path / self._file_name
-        self._tmp_path = dir_path / (self._file_name + '.tmp')
+    def __init__(self, path: Path, dimension: int, size: int):
+        self._index_path = path
+        self._tmp_path = path.with_suffix(path.suffix + '.tmp')
 
     def commit(self) -> None:
         self._commit()
@@ -410,12 +420,11 @@ class ANNWriterBackend:
 class AnnoyReaderBackend(ANNReaderBackend):
     """Concrete ANN index reader backend using Annoy."""
 
-    _file_name = annoy_name
-
-    def __init__(self, dir_path: Path, dimension: int):
-        super().__init__(dir_path)
+    def __init__(self, path: Path, dimension: int):
+        super().__init__(path, dimension)
         print(f"Loading Annoy index from {self._index_path}")
-        self._index = AnnoyIndex(dimension, annoy_metric)  # type: ignore
+        metric = AnnoyStrategy.annoy_metric
+        self._index = AnnoyIndex(dimension, metric)  # type: ignore
         self._index.load(str(self._index_path))
 
     def close(self) -> None:
@@ -430,15 +439,14 @@ class AnnoyReaderBackend(ANNReaderBackend):
 class AnnoyWriterBackend(ANNWriterBackend):
     """Concrete ANN index writer backend using Annoy."""
 
-    _file_name = annoy_name
-
-    def __init__(self, dir_path: Path, dimension: int):
-        super().__init__(dir_path)
-        self._index = AnnoyIndex(dimension, annoy_metric)  # type: ignore
+    def __init__(self, path: Path, dimension: int, size: int):
+        super().__init__(path, dimension, size)
+        metric = AnnoyStrategy.annoy_metric
+        self._index = AnnoyIndex(dimension, metric)  # type: ignore
         self._index.on_disk_build(str(self._tmp_path))
 
     def _commit(self) -> None:
-        self._index.build(annoy_trees)
+        self._index.build(AnnoyStrategy.annoy_trees)
         self._index.unload()
 
     def _abort(self) -> None:
@@ -446,3 +454,20 @@ class AnnoyWriterBackend(ANNWriterBackend):
 
     def add_item(self, value: int, vector: list[float]) -> None:
         self._index.add_item(value, vector)
+
+
+class AnnoyStrategy(ANNStrategy):
+    """Strategy for Annoy index."""
+
+    _file_name = "index.ann"
+    _reader_type = AnnoyReaderBackend
+    _writer_type = AnnoyWriterBackend
+    annoy_metric = "euclidean"
+    annoy_trees = 100
+
+    def identifier(self) -> str:
+        normalization = normalization_of[self.model]
+        return '-'.join([
+            self.detector, self.model, normalization, 'annoy',
+            str(self.annoy_trees), self.annoy_metric])
+
