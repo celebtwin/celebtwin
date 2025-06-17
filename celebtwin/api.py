@@ -9,7 +9,7 @@ from typing_extensions import TypedDict
 from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
-from celebtwin.logic.ann import ANNReader, AnnoyStrategy
+from celebtwin.logic.ann import ANNReader, ANNBackend
 from celebtwin.logic.preproc_face import NoFaceDetectedError
 from celebtwin.logic.registry import load_latest_experiment
 
@@ -85,7 +85,7 @@ def predict_annoys(file: UploadFile, model: FaceModel = FaceModel.facenet) \
         -> ClassNameResponse | ErrorResponse:
     with NamedTemporaryFile(delete=False) as temp_file:
         temp_file.write(file.file.read())
-        reader = load_annoy(model)
+        reader = load_ann(model)
         try:
             class_, name = reader.find_image(Path(temp_file.name))
         except NoFaceDetectedError:
@@ -97,21 +97,22 @@ def predict_annoys(file: UploadFile, model: FaceModel = FaceModel.facenet) \
 
 
 @cache
-def load_annoy(model: FaceModel) -> ANNReader:
+def load_ann(model: FaceModel) -> ANNReader:
     # Load the production index. We do not support unloading. Resources are
     # released when the process exits.
-    strategy = AnnoyStrategy("skip", model.as_deepface_model())
+    strategy = ANNBackend.ANNOY.strategy_class(
+        "skip", model.as_deepface_model())
     return ANNReader(strategy)
 
 
 @app.on_event("startup")
-def preload_annoy():
+def preload_ann():
     print("Preloading models...")
     from deepface.modules.modeling import build_model  # type: ignore
     for model in FaceModel:
         build_model(
             task="facial_recognition", model_name=model.as_deepface_model())
-        load_annoy(model)
+        load_ann(model)
 
 
 @app.get("/")

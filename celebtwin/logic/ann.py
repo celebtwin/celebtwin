@@ -1,6 +1,8 @@
 """Find faces with Approximate Nearest Neighbor (ANN) search."""
 
 import csv
+from enum import Enum
+import functools
 import pickle
 import random
 from itertools import groupby
@@ -42,6 +44,21 @@ normalization_of = {
     'VGG-Face': 'VGGFace2',
     "OpenFace": 'Facenet2018',
 }
+
+
+class ANNBackend(str, Enum):
+    ANNOY = "annoy"
+    BRUTE_FORCE = "brute"
+    HNSW = "hnsw"
+
+    @functools.cached_property
+    def strategy_class(self) -> 'type[ANNStrategy]':
+        if self == ANNBackend.ANNOY:
+            return AnnoyStrategy
+        elif self == ANNBackend.BRUTE_FORCE:
+            return BruteForceStrategy
+        elif self == ANNBackend.HNSW:
+            return HnswStrategy
 
 
 class ANNReader:

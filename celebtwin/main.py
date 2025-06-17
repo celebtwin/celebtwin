@@ -119,56 +119,64 @@ ann_align_option = click.option(
     "-a", "--align", type=detector_choice, default="builtin",
     help="""Detector backend for face alignment, defaults to built-in.""")
 
-embedding_choice = click.Choice([
+model_choice = click.Choice([
     "VGG-Face", "Facenet", "Facenet512", "OpenFace", "DeepFace", "DeepID",
     "Dlib", "ArcFace", "SFace", "GhostFaceNet"])
 ann_model_option = click.option(
-    "-m", "--model", type=embedding_choice, default="Facenet",
+    "-m", "--model", type=model_choice, default="Facenet",
     help="Model used to generate embeddings, defaults to Facenet.")
+
+ann_backend_option = click.option(
+    "-b", "--backend", type=click.Choice(['annoy', 'brute', 'hnsw']),
+    default="annoy",
+    help="ANNBackend used to build the index, defaults to annoy.")
 
 
 @cli.command()
 @ann_align_option
 @ann_model_option
+@ann_backend_option
 @click.argument("validation_split", type=float)
-def eval_ann(align: str, model: str, validation_split: float) -> None:
+def eval_ann(align: str, model: str, backend: str, validation_split: float) -> None:
     """Evaluate the ANN index."""
     if align == "builtin":
         align = "skip"
     print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
-    from celebtwin.logic.ann import ANNIndexEvaluator, AnnoyStrategy
+    from celebtwin.logic.ann import ANNIndexEvaluator, ANNBackend
     print(Fore.MAGENTA + "⭐️ Evaluating ANN index" + Style.RESET_ALL)
-    strategy = AnnoyStrategy(align, model)
+    strategy = ANNBackend(backend).strategy_class(align, model)
     ANNIndexEvaluator(strategy, validation_split).run()
 
 
 @cli.command()
 @ann_align_option
 @ann_model_option
-def build_ann(align: str, model: str) -> None:
+@ann_backend_option
+def build_ann(align: str, model: str, backend: str) -> None:
     """Build an ANN index for the dataset."""
     if align == "builtin":
         align = "skip"
     print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
-    from celebtwin.logic.ann import ANNIndexBuilder, AnnoyStrategy
+    from celebtwin.logic.ann import ANNIndexBuilder, ANNBackend
     print(Fore.MAGENTA + "⭐️ Building ANN index" + Style.RESET_ALL)
-    strategy = AnnoyStrategy(align, model)
+    strategy = ANNBackend(backend).strategy_class(align, model)
     ANNIndexBuilder(strategy).run()
 
 
 @cli.command()
 @ann_align_option
 @ann_model_option
+@ann_backend_option
 @click.argument("image_path", type=click.Path(exists=True))
-def pred_ann(image_path: Path, align: str, model: str) -> None:
+def pred_ann(image_path: Path, align: str, model: str, backend: str) -> None:
     """Predict the class of a single image using embedding proximity."""
     if align == "builtin":
         align = "skip"
     print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
-    from celebtwin.logic.ann import ANNReader, AnnoyStrategy
+    from celebtwin.logic.ann import ANNReader, ANNBackend
     from celebtwin.logic.preproc_face import NoFaceDetectedError
     print(Fore.MAGENTA + "⭐️ Predicting" + Style.RESET_ALL)
-    strategy = AnnoyStrategy(align, model)
+    strategy = ANNBackend(backend).strategy_class(align, model)
     with ANNReader(strategy) as reader:
         try:
             class_, name = reader.find_image(image_path)
