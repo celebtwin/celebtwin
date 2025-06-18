@@ -132,7 +132,7 @@ class ANNIndexBuilder:
                 print(f"Warning: No face detected in {path}. Skipping.")
                 self.deepface_cache.set(path, "noface")
                 return
-        self.deepface_cache.set(path, result["embedding"])  # type: ignore
+        self.deepface_cache.set(path, result)
 
     def _build_ann_index(self) -> None:
         """Build the ANN index for the dataset."""
