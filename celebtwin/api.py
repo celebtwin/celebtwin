@@ -102,7 +102,7 @@ def predict_annoy(file: UploadFile, model: FaceModel = FaceModel.facenet) \
 def load_ann(model: FaceModel) -> ANNReader:
     # Load the production index. We do not support unloading. Resources are
     # released when the process exits.
-    strategy = ANNBackend.HNSW.strategy_class(
+    strategy = ANNBackend.BRUTE_FORCE.strategy_class(
         Detector.SKIP, model.deepface_model)
     return ANNReader(strategy)
 
