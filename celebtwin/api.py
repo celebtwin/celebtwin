@@ -113,7 +113,7 @@ def preload_ann():
     from deepface.modules.modeling import build_model  # type: ignore
     for model in FaceModel:
         build_model(
-            task="facial_recognition", model_name=model.as_deepface_model())
+            task="facial_recognition", model_name=model.deepface_model)
         load_ann(model)
 
 
