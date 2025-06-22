@@ -7,7 +7,7 @@ type checking.
 import functools
 from enum import Enum
 
-import celebtwin
+from .. import logic
 
 
 class Model(str, Enum):
@@ -22,11 +22,6 @@ class Model(str, Enum):
     S_FACE = "SFace"
     GHOST_FACE_NET = "GhostFaceNet"
 
-    @classmethod
-    @functools.cache
-    def from_value(cls, value: str) -> 'Model':
-        return _model_of[str(value)]
-
     @functools.cached_property
     def embedding_size(self) -> int:
         return _embedding_size_of[self]
@@ -35,8 +30,6 @@ class Model(str, Enum):
     def normalization(self) -> str:
         return _normalization_of[self]
 
-
-_model_of = {m.value: m for m in Model}
 
 _embedding_size_of = {
     'Facenet': 128,
@@ -78,24 +71,11 @@ class Detector(str, Enum):
     CENTERFACE = "centerface"
     SKIP = "skip"
 
-    @classmethod
-    @functools.cache
-    def from_value(cls, value: str) -> 'Detector':
-        return _detector_of[str(value)]
-
-
-_detector_of = {d.value: d for d in Detector}
-
 
 class ANNBackend(str, Enum):
     ANNOY = "annoy"
     BRUTE_FORCE = "brute"
     HNSW = "hnsw"
-
-    @classmethod
-    @functools.cache
-    def from_value(cls, value: str) -> 'ANNBackend':
-        return _ann_backend_of[str(value)]
 
     @functools.cached_property
     def strategy_class(self) -> 'type[celebtwin.logic.ann.ANNStrategy]':

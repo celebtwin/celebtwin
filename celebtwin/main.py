@@ -5,7 +5,8 @@ from pathlib import Path
 import click
 from colorama import Fore, Style
 
-from celebtwin.logic.annenums import Detector, Model, ANNBackend
+from . import logic
+from .logic.annenums import Detector, Model, ANNBackend
 
 
 @click.group()
@@ -131,6 +132,13 @@ ann_backend_option = click.option(
     help="ANNBackend used to build the index, defaults to annoy.")
 
 
+def _make_strategy(backend: str, align: str, model: str) \
+        -> 'logic.ann.ANNStrategy':
+    """Make an ANN strategy from the command line options."""
+    return ANNBackend(backend).strategy_class(
+        Detector(align), Model(model))
+
+
 @cli.command()
 @ann_align_option
 @ann_model_option
@@ -144,8 +152,7 @@ def eval_ann(
     print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
     from celebtwin.logic.ann import ANNIndexEvaluator
     print(Fore.MAGENTA + "⭐️ Evaluating ANN index" + Style.RESET_ALL)
-    strategy = ANNBackend.from_value(backend).strategy_class(
-        Detector.from_value(align), Model.from_value(model))
+    strategy = _make_strategy(backend, align, model)
     ANNIndexEvaluator(strategy, validation_split).run()
 
 
@@ -160,8 +167,7 @@ def build_ann(align: str, model: str, backend: str) -> None:
     print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
     from celebtwin.logic.ann import ANNIndexBuilder
     print(Fore.MAGENTA + "⭐️ Building ANN index" + Style.RESET_ALL)
-    strategy = ANNBackend.from_value(backend).strategy_class(
-        Detector.from_value(align), Model.from_value(model))
+    strategy = _make_strategy(backend, align, model)
     ANNIndexBuilder(strategy).run()
 
 
@@ -179,9 +185,8 @@ def pred_ann(
     from celebtwin.logic.ann import ANNReader
     from celebtwin.logic.preproc_face import NoFaceDetectedError
     print(Fore.MAGENTA + "⭐️ Predicting" + Style.RESET_ALL)
-    strategy = ANNBackend.from_value(backend).strategy_class(
-        Detector.from_value(align), Model.from_value(model))
-    print(strategy)
+    strategy = ANNBackend(backend).strategy_class(
+        Detector(align), Model(model))
     with ANNReader(strategy) as reader:
         try:
             class_, name = reader.find_image(image_path)
