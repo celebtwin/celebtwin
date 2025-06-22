@@ -77,15 +77,16 @@ class ANNBackend(str, Enum):
     BRUTE_FORCE = "brute"
     HNSW = "hnsw"
 
-    @functools.cached_property
-    def strategy_class(self) -> 'type[celebtwin.logic.ann.ANNStrategy]':
-        from celebtwin.logic import ann
-        if self == ANNBackend.ANNOY:
-            return ann.AnnoyStrategy
-        elif self == ANNBackend.BRUTE_FORCE:
-            return ann.BruteForceStrategy
-        elif self == ANNBackend.HNSW:
-            return ann.HnswStrategy
+    @property
+    def strategy_class(self) -> type["logic.ann.ANNStrategy"]:
+        return _strategy_class_of()[self]
 
 
-_ann_backend_of = {b.value: b for b in ANNBackend}
+@functools.cache
+def _strategy_class_of() -> dict[ANNBackend, type["logic.ann.ANNStrategy"]]:
+    from celebtwin.logic import ann
+    return {
+        ANNBackend.ANNOY: ann.AnnoyStrategy,
+        ANNBackend.BRUTE_FORCE: ann.BruteForceStrategy,
+        ANNBackend.HNSW: ann.HnswStrategy,
+    }
