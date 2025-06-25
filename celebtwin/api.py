@@ -27,13 +27,6 @@ app.add_middleware(
 )
 
 
-@app.post("/setmodel/")
-def setmodel(model_version: str):
-    """Set active model"""
-    # app.state.model = load_model()
-    return {"model_version": model_version, "params": "todef"}
-
-
 @app.post("/predict/")
 def predict(file: UploadFile, model: str | None = None):
     assert file.filename is not None
