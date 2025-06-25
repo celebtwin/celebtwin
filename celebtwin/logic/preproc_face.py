@@ -54,9 +54,9 @@ class NoFaceDetectedError(Exception):
 
     def __init__(self, path: Path | None = None):
         if path is None:
-            message = '❌ No face detected'
+            message = "❌ No face detected"
         else:
-            message = f'❌ No face detected: {path}'
+            message = f"❌ No face detected: {path}"
         super().__init__(message)
 
 
