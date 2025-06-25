@@ -115,10 +115,9 @@ def pred(image_path: Path) -> None:
           + Style.RESET_ALL)
 
 
-detector_choice = click.Choice(
-    [d.value for d in Detector if d != Detector.SKIP] + ["builtin"])
+detector_choice = click.Choice([d.value for d in Detector])
 ann_align_option = click.option(
-    "-a", "--align", type=detector_choice, default="builtin",
+    "-a", "--align", type=detector_choice, default=Detector.BUILTIN,
     help="""Detector backend for face alignment, defaults to built-in.""")
 
 model_choice = click.Choice([m.value for m in Model])
@@ -147,8 +146,6 @@ def _make_strategy(backend: str, align: str, model: str) \
 def eval_ann(
         align: str, model: str, backend: str, validation_split: float) -> None:
     """Evaluate the ANN index."""
-    if align == "builtin":
-        align = Detector.SKIP.value
     print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
     from celebtwin.logic.ann import ANNIndexEvaluator
     print(Fore.MAGENTA + "⭐️ Evaluating ANN index" + Style.RESET_ALL)
@@ -162,8 +159,6 @@ def eval_ann(
 @ann_backend_option
 def build_ann(align: str, model: str, backend: str) -> None:
     """Build an ANN index for the dataset."""
-    if align == "builtin":
-        align = Detector.SKIP.value
     print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
     from celebtwin.logic.ann import ANNIndexBuilder
     print(Fore.MAGENTA + "⭐️ Building ANN index" + Style.RESET_ALL)
@@ -179,8 +174,6 @@ def build_ann(align: str, model: str, backend: str) -> None:
 def pred_ann(
         image_path: Path, align: str, model: str, backend: str) -> None:
     """Predict the class of a single image using embedding proximity."""
-    if align == "builtin":
-        align = Detector.SKIP.value
     print(Fore.BLUE + "Starting up" + Style.RESET_ALL)
     from celebtwin.logic.ann import ANNReader
     from celebtwin.logic.preproc_face import NoFaceDetectedError

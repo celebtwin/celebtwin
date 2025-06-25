@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Iterator
 
 import hnswlib  # type: ignore
-import numpy as np
 from annoy import AnnoyIndex
 from deepface import DeepFace  # type: ignore
 from tqdm import tqdm
@@ -60,13 +59,7 @@ class ANNReader:
 
         Raise NoFaceDetectedError if no face is detected in the image.
         """
-        if self.strategy.detector == Detector.SKIP:
-            # If the detector is "skip" use our internal face detection.
-            rgb_face = preprocess_face_aligned(path)
-            image_data = rgb_face[..., ::-1]  # Convert RGB to BGR
-            vector = self.strategy.represent(image_data)
-        else:
-            vector = self.strategy.represent(str(path))
+        vector = self.strategy.represent(path)
         if len(vector) != self.strategy.dimension:
             raise ValueError(
                 f"Expected vector of size {self.strategy.dimension}, "
@@ -89,7 +82,7 @@ class ANNIndexBuilder:
         self._report()
 
     def _build_path_lists(self) -> None:
-        if self.strategy.detector == Detector.SKIP:
+        if self.strategy.detector == Detector.BUILTIN:
             aligned_dataset = AlignedDatasetFull()
             downloaded = aligned_dataset.try_download()
             assert downloaded
@@ -119,7 +112,7 @@ class ANNIndexBuilder:
                 pass
 
     def _fill_cache_for_path(self, path: Path) -> None:
-        if self.strategy.detector == Detector.SKIP:
+        if self.strategy.detector == Detector.BUILTIN:
             key = (path.parent.name, path.name)
             if key not in self.aligned_entries:
                 self.deepface_cache.set(path, "noface")
@@ -315,8 +308,17 @@ class ANNStrategy:
     def index_path(self):
         return self.ann_subdir() / self._file_name
 
-    def represent(self, image: np.ndarray | str | Path) -> list[float]:
+    def represent(self, image: Path) -> list[float]:
         """Get the embedding for the given image."""
+        if self.detector == Detector.BUILTIN:
+            rgb_face = preprocess_face_aligned(image)
+            image_data = rgb_face[..., ::-1]  # Convert RGB to BGR
+            result_list = DeepFace.represent(
+                img_path=image_data,
+                model_name=self.model,
+                detector_backend=Detector.SKIP)
+            return result_list[0]["embedding"]
+
         result_list = DeepFace.represent(
             img_path=image,
             model_name=self.model,

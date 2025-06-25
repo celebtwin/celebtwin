@@ -99,7 +99,7 @@ def load_ann(model: FaceModel) -> ANNReader:
     # Load the production index. We do not support unloading. Resources are
     # released when the process exits.
     strategy = ANNBackend.BRUTE_FORCE.strategy_class(
-        Detector.SKIP, model.deepface_model)
+        Detector.BUILTIN, model.deepface_model)
     return ANNReader(strategy)
 
 

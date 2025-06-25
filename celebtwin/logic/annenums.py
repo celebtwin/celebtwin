@@ -69,6 +69,7 @@ class Detector(str, Enum):
     YOLOV11N = "yolov11n"
     YOLOV11S = "yolov11s"
     CENTERFACE = "centerface"
+    BUILTIN = "builtin"
     SKIP = "skip"
 
 

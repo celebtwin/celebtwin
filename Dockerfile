@@ -11,10 +11,10 @@ RUN pip install --no-cache-dir --upgrade pip
 RUN CPPFLAGS="-DNO_MANUAL_VECTORIZATION" pip install --no-binary annoy annoy==1.17.3
 RUN pip install --no-cache-dir -r requirements.txt
 COPY celebtwin /app/celebtwin/
-COPY training_outputs/ann/skip-VGG-Face-VGGFace2-brute \
-/app/training_outputs/ann/skip-VGG-Face-VGGFace2-brute
-COPY training_outputs/ann/skip-Facenet-Facenet2018-brute \
-/app/training_outputs/ann/skip-Facenet-Facenet2018-brute
+COPY training_outputs/ann/builtin-VGG-Face-VGGFace2-brute \
+/app/training_outputs/ann/builtin-VGG-Face-VGGFace2-brute
+COPY training_outputs/ann/builtin-Facenet-Facenet2018-brute \
+/app/training_outputs/ann/builtin-Facenet-Facenet2018-brute
 
 # Copy deepface models into the image. The files are downloaded in Makefile.
 COPY dockerbuild/.deepface /app/.deepface/
