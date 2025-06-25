@@ -4,10 +4,10 @@ from functools import cache
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Literal
-from typing_extensions import TypedDict
 
 from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from typing_extensions import TypedDict
 
 from celebtwin.logic.ann import ANNReader
 from celebtwin.logic.annenums import ANNBackend, Detector, Model
