@@ -196,6 +196,22 @@ def pred_ann(
     print(Fore.GREEN + f"Closest image: {class_}/{name}" + Style.RESET_ALL)
 
 
+@cli.command()
+@ann_align_option
+@click.argument("image_path", type=click.Path(exists=True))
+def align(image_path: Path, align: str) -> None:
+    """Align a single image."""
+    from celebtwin.logic.preproc_face import detect_faces
+    assert align == "builtin"
+    faces = detect_faces(image_path)
+    print("Detected faces:")
+    for i, face in enumerate(faces):
+        print(f"Face {i+1}:")
+        print(f"  Left eye: {face.left_eye}")
+        print(f"  Right eye: {face.right_eye}")
+        print(f"  Box: {face.box}")
+
+
 def main():
     if not os.getenv('DEBUG'):
         cli()
