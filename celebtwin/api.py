@@ -81,9 +81,12 @@ ClassNameResponse = TypedDict(
     {"status": Literal["ok"], "class": str, "name": str})
 
 
+@app.post("/predict-nn/{model}")
+@app.post("/predict-nn/")
+# /predict-annory is deprecated.
 @app.post("/predict-annoy/{model}")
 @app.post("/predict-annoy/")
-def predict_annoy(file: UploadFile, model: FaceModel = FaceModel.facenet) \
+def predict_ann(file: UploadFile, model: FaceModel = FaceModel.facenet) \
         -> ClassNameResponse | ErrorResponse:
     with NamedTemporaryFile(delete=False) as temp_file:
         temp_file.write(file.file.read())
