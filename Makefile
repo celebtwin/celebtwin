@@ -10,6 +10,7 @@ MAKEFLAGS += --no-builtin-rules
 help:
 	@echo "make setup          - creates the virtual env and install packages"
 	@echo "make dataset        - download the raw dataset"
+	@echo "make clean          - Remove image and cache"
 	@echo "make train          - train a model"
 	@echo "make run_api        - start web services"
 	@echo "make lint           - run code analysis and style checks"
@@ -17,7 +18,8 @@ help:
 	@echo "make pip-compile    - compile requirements files"
 	@echo "make image          - build the Docker image"
 	@echo "make image-run      - run the Docker image"
-	@echo "make image-prod     - build the Docker image for production"
+	@echo "make deploy        - instruction to deploy the code to production"
+	@echo "make image-on-instance - build the Docker image on the instance"
 	@echo "make image-create-repo - create the Docker repository"
 	@echo "make image-auth     - authenticate to the Docker repository"
 	@echo "make image-push     - push the Docker image to the repository"
@@ -26,14 +28,11 @@ help:
 	@echo "make stop-instance  - stop the instance"
 	@echo "make ssh            - ssh into the instance"
 
-PY_VERSION=3.10.17
 .PHONY: setup
 setup:
-	pyenv install --skip-existing $(PY_VERSION)
-	pyenv virtualenvs --bare | grep -e '^celebtwin$$' \
-	|| pyenv virtualenv $(PY_VERSION) celebtwin
-	pyenv local celebtwin
-	$(MAKE) requirements
+	uv venv
+	uv pip install --upgrade pip
+	uv pip install -r requirements.txt -r requirements-dev.txt
 
 dataset_zip = pins-face-recognition.zip
 
@@ -44,14 +43,13 @@ dataset:
 	https://www.kaggle.com/api/v1/datasets/download/hereisburak/pins-face-recognition
 	cd raw_data && unzip -q "${dataset_zip}"
 
-
 .PHONY: clean
 clean:
 	rm -fr **/__pycache__ **/*.pyc dockerbuild *.egg-info
 
 .PHONY: run_api
 run_api:
-	uvicorn celebtwin.api:app --reload
+	uv run uvicorn celebtwin.api:app --reload
 
 .PHONY: train
 train:
@@ -71,12 +69,17 @@ requirements: pip-compile
 .PHONY: pip-compile
 pip-compile: requirements.txt requirements-dev.txt
 
+PIP_COMPILE_FLAGS = --strip-extras --generate-hashes
 requirements.txt: pyproject.toml
-	pip-compile --quiet --strip-extras pyproject.toml
+	uv pip compile $(PIP_COMPILE_FLAGS) $< > $@
 
-requirements-dev.txt: requirements-dev.in requirements.txt
-	pip-compile --quiet --strip-extras --constraint=requirements.txt \
-	requirements-dev.in
+# Extract dev dependencies from pyproject.toml
+EXTRACT_DEV_REQS = uv run python -c "import tomllib; print('\n'.join(tomllib.load(open('pyproject.toml', 'rb'))['dependency-groups']['dev']))"
+
+requirements-dev.txt: pyproject.toml requirements.txt
+	$(EXTRACT_DEV_REQS) > requirements-dev.in
+	uv pip compile $(PIP_COMPILE_FLAGS) --constraint=requirements.txt requirements-dev.in > $@
+	rm requirements-dev.in
 
 # Name of Docker image
 IMAGE=celebtwin
@@ -88,9 +91,12 @@ weights_url_base = \
 https://github.com/serengil/deepface_models/releases/download/v1.0
 
 .PHONY: image
+# Set NO_CACHE=--no-cache to invalidate the cache.
 image: $(weights_files)
 	$(MAKE) $(weights_files)
-	docker build -t $(IMAGE) .
+	# Serialize build process to avoid lock conflict on apt cache
+	docker --debug build $(NO_CACHE) --target build -t $(IMAGE) .
+	docker --debug build -t $(IMAGE) .
 
 $(weights_files):
 	mkdir -p $(dir $@)
@@ -101,9 +107,19 @@ $(weights_files):
 image-run:
 	docker run -e PORT=8000 -p 8000:8000 $(IMAGE)
 
-.PHONY: image-prod
-image-prod:
-	docker build --platform=linux/amd64 -t $(IMAGE) .
+.PHONY: deploy
+deploy:
+	@echo "How to build image for production:"
+	@echo "$$ git commit"
+	@echo "$$ git push  # Must be in main branch, upload changes to GitHub"
+	@echo "$$ make start-instance"
+	@echo "$$ make image-on-instance"
+	@echo "$$ make image-deploy"
+	@echo "$$ make stop-instance"
+
+.PHONY: image-on-instance
+image-on-instance:
+	$(MAKE) ssh COMMAND='cd celebtwin && git pull origin main && make image image-push'
 
 # Google Cloud settings
 PROJECT=celebtwin
@@ -146,6 +162,7 @@ start-instance:
 stop-instance:
 	gcloud compute instances stop --zone=$(ZONE) $(INSTANCE)
 
+COMMAND =
 .PHONY: ssh
 ssh:
-	gcloud compute ssh $(INSTANCE) --project=$(PROJECT) --zone=$(ZONE) -- -A
+	gcloud compute ssh $(INSTANCE) --project=$(PROJECT) --zone=$(ZONE) -- -A $(COMMAND)

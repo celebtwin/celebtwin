@@ -1,18 +1,26 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = [
+  "celebtwin",
+  "celebtwin.logic",
+]
+
 [project]
 name = "celebtwin"
 version = "0.1"
 description = "Who is your celebrity twin?"
 readme = "README.md"
-requires-python = ">=3.10"
-license = { text = "AGPL-3.0-or-later"}
+requires-python = ">=3.10,<3.13"
+license = "AGPL-3.0-or-later"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Internet",
@@ -25,8 +33,9 @@ authors = [
     {name = "Timothée Farines", email = "timothee.farines@gmail.com"},
     {name = "Léonce Nzamba", email = "leonce.nzamba@gmail.com"},
     ]
+
 dependencies = [
-  "annoy==1.17.3",  # Update Dockerfile when updating this version.
+  "annoy==1.17.3", # Update Dockerfile when updating this version.
   "click",
   "colorama",
   "decorator",
@@ -39,18 +48,37 @@ dependencies = [
   "numpy",
   "opencv-python",
   "python-multipart",
-  "tensorflow-cpu; sys_platform != 'darwin'",  # Use CPU version on non-Mac systems
+  "tensorflow-cpu; sys_platform != 'darwin' and 'x86_64' in platform_version", # Use CPU version on non-Mac systems
   "tensorflow-metal; sys_platform == 'darwin' and 'ARM' in platform_version", # GPU acceleration for Mac M-chips
   "tensorflow",
   "tf_keras",
   "tqdm",
   "uvicorn",
 ]
+
 [project.urls]
 Homepage = "https://github.com/celebtwin/celebtwin"
 Repository = "https://github.com/celebtwin/celebtwin.git"
-[tool.setuptools]
-packages = [
-  "celebtwin",
-  "celebtwin.logic",
+
+[dependency-groups]
+dev = [
+  "ipdb",
+  "ipykernel",
+  "ipython>=8.37.0",
+  "isort>=6.0.1",
+  "matplotlib",
+  "mypy",
+  "pandas",
+  "pip-tools",
+  "pycodestyle>=2.14.0",
+  "ruff",
+  "scikit-learn",
+  "seaborn",
+  "types-colorama",
+  "types-decorator",
+  "types-tensorflow",
+  "types-tqdm",
 ]
+
+[project.scripts]
+celebtwin = "celebtwin.main:main"
