@@ -1,6 +1,5 @@
 
 import functools
-from dataclasses import dataclass
 from math import atan2, degrees
 from pathlib import Path
 
@@ -9,32 +8,12 @@ import numpy as np
 import tensorflow as tf
 from mtcnn.mtcnn import MTCNN  # type: ignore
 
-
-@dataclass(frozen=True)
-class Point:
-    x: int
-    y: int
-
-
-@dataclass(frozen=True)
-class Box:
-    left: int
-    top: int
-    width: int
-    height: int
-
-
-@dataclass(frozen=True)
-class Face:
-    left_eye: Point
-    right_eye: Point
-    box: Box
-
+from .detection import Box, Face, Image, Point
 
 mtcnn_detector = MTCNN()
 
 
-def detect_faces(image: str | Path | np.ndarray | tf.Tensor) -> list[Face]:
+def detect_faces(image: Image) -> list[Face]:
     if isinstance(image, (str, Path)):
         image_data = tf.io.read_file(str(image))
         image = tf.image.decode_image(image_data, channels=3)
@@ -43,9 +22,10 @@ def detect_faces(image: str | Path | np.ndarray | tf.Tensor) -> list[Face]:
 
     unwrap = functools.partial(map, lambda x: x.item())
     return [Face(
+        box=Box(*(detection["box"])),
         left_eye=Point(*unwrap(detection["keypoints"]["left_eye"])),
         right_eye=Point(*unwrap(detection["keypoints"]["right_eye"])),
-        box=Box(*unwrap(detection["box"]))
+        confidence=detection["confidence"],
     ) for detection in mtcnn_detector.detect_faces(image)]
 
 
@@ -65,7 +45,6 @@ def preprocess_face_aligned(path: Path) -> np.ndarray:
 
     The image is cropped to include only the face. Resizing should be done by the caller.
     """
-    # MTCNN requires a RGB image. Apply grayscale conversion later.
     image = tf.image.decode_image(
         tf.io.read_file(str(path)),
         channels=3, expand_animations=False)
@@ -73,6 +52,7 @@ def preprocess_face_aligned(path: Path) -> np.ndarray:
     faces = detect_faces(image)
     if not faces:
         raise NoFaceDetectedError(path)
+    faces.sort(key=lambda face: face.box.width * face.box.height, reverse=True)
     face = faces[0]
 
     # Angle between the eyes and the horizontal axis.
@@ -82,8 +62,8 @@ def preprocess_face_aligned(path: Path) -> np.ndarray:
     dy = right_eye.y - left_eye.y
     angle = degrees(atan2(dy, dx))
 
-    eyes_center = Point((left_eye.x + right_eye.x) / 2,
-                        (left_eye.y + right_eye.y) / 2)
+    eyes_center = (
+        (left_eye.x + right_eye.x) / 2, (left_eye.y + right_eye.y) / 2)
 
     # Rotate the image to align the eyes horizontally.
     rotation_matrix = cv2.getRotationMatrix2D(eyes_center, angle, scale=1.0)

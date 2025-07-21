@@ -1,12 +1,13 @@
 import os
 import sys
+from dataclasses import astuple
 from pathlib import Path
 
 import click
 from colorama import Fore, Style
 
 from . import logic
-from .logic.annenums import Detector, Model, ANNBackend
+from .logic.annenums import ANNBackend, Detector, Model
 
 
 @click.group()
@@ -117,12 +118,12 @@ def pred(image_path: Path) -> None:
 
 detector_choice = click.Choice([d.value for d in Detector])
 ann_align_option = click.option(
-    "-a", "--align", type=detector_choice, default=Detector.BUILTIN,
+    "-a", "--align", type=detector_choice, default=Detector.BUILTIN.value,
     help="""Detector backend for face alignment, defaults to built-in.""")
 
 model_choice = click.Choice([m.value for m in Model])
 ann_model_option = click.option(
-    "-m", "--model", type=model_choice, default="Facenet",
+    "-m", "--model", type=model_choice, default=Model.FACENET.value,
     help="Model used to generate embeddings, defaults to Facenet.")
 
 ann_backend_option = click.option(
@@ -192,20 +193,20 @@ def pred_ann(
 @cli.command()
 @ann_align_option
 @click.argument("image_path", type=click.Path(exists=True))
-def align(image_path: Path, align: str) -> None:
-    """Align a single image."""
-    from celebtwin.logic.preproc_face import detect_faces
-    assert align == "builtin"
-    faces = detect_faces(image_path)
-    print("Detected faces:")
+def detect(image_path: Path, align: str) -> None:
+    """Detect faces in a single image."""
+    from celebtwin.logic.detection import detect_faces
+    faces = detect_faces(Detector(align), image_path)
+    click.secho("Detected faces:", fg="bright_blue")
     for i, face in enumerate(faces):
-        print(f"Face {i+1}:")
-        print(f"  Left eye: {face.left_eye}")
-        print(f"  Right eye: {face.right_eye}")
-        print(f"  Box: {face.box}")
+        click.secho(f"Face {i+1}:", fg="bright_green")
+        click.echo(f"  Box: {astuple(face.box)}")
+        click.echo(f"  Left eye: {astuple(face.left_eye)}")
+        click.echo(f"  Right eye: {astuple(face.right_eye)}")
+        click.echo(f"  Confidence: {face.confidence:.1%}")
 
 
-def main():
+def main() -> None:
     if not os.getenv('DEBUG'):
         cli()
     else:
@@ -213,6 +214,7 @@ def main():
             cli()
         except Exception:
             import traceback
+
             import ipdb  # type: ignore
             exc_type, exc_value, exc_traceback = sys.exc_info()
             traceback.print_exc()

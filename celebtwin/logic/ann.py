@@ -13,11 +13,11 @@ from annoy import AnnoyIndex
 from deepface import DeepFace  # type: ignore
 from tqdm import tqdm
 
+from celebtwin.logic.annenums import Detector, Model
 from celebtwin.logic.data import AlignedDatasetFull, PinsDataset
 from celebtwin.logic.preproc_face import (
     NoFaceDetectedError, preprocess_face_aligned)
 from celebtwin.params import LOCAL_REGISTRY_PATH
-from celebtwin.logic.annenums import Detector, Model
 
 ann_dir = Path(LOCAL_REGISTRY_PATH) / "ann"
 deepface_dir = Path(LOCAL_REGISTRY_PATH) / "deepface"
