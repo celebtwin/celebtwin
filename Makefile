@@ -92,11 +92,12 @@ https://github.com/serengil/deepface_models/releases/download/v1.0
 
 .PHONY: image
 # Set NO_CACHE=--no-cache to invalidate the cache.
+# Set PLATFORM='--platform linux/amd64' to build for x86_64 architecture.
 image: $(weights_files)
 	$(MAKE) $(weights_files)
 	# Serialize build process to avoid lock conflict on apt cache
-	docker --debug build $(NO_CACHE) --target build -t $(IMAGE) .
-	docker --debug build -t $(IMAGE) .
+	docker --debug build $(PLATFORM) $(NO_CACHE) --target build -t $(IMAGE) .
+	docker --debug build $(PLATFORM) -t $(IMAGE) .
 
 $(weights_files):
 	mkdir -p $(dir $@)
@@ -119,7 +120,7 @@ deploy:
 
 .PHONY: image-on-instance
 image-on-instance:
-	$(MAKE) ssh COMMAND='cd celebtwin && git pull origin main && make image image-push'
+	$(MAKE) ssh COMMAND='cd celebtwin && git pull origin main && make PLATFORM="--platform linux/amd64" image image-push'
 
 # Google Cloud settings
 PROJECT=celebtwin
