@@ -11,7 +11,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Set up virtual environment
 ENV VIRTUAL_ENV=/app/.venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
-COPY README.md pyproject.toml uv.lock /app/
+COPY README.md pyproject.toml requirements.txt /app/
 RUN uv venv
 
 COPY celebtwin /app/celebtwin
