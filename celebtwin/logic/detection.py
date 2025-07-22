@@ -3,10 +3,10 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-import deepface.modules.modeling
+import deepface.models.Detector  # type: ignore
+import deepface.modules.modeling  # type: ignore
 import numpy as np
 import tensorflow as tf
-from deepface.models.Detector import Detector as DeepFaceDetector
 
 from .annenums import Detector
 
@@ -41,7 +41,7 @@ def detect_faces(detector: Detector, image: Image) -> list[Face]:
         from ..logic import preproc_face
         faces = preproc_face.detect_faces(image)
     else:
-        face_detector: DeepFaceDetector = \
+        face_detector: deepface.models.detector.DeepFaceDetector = \
             deepface.modules.modeling.build_model(
                 task="face_detector", model_name=detector.value)
         faces = [Face(

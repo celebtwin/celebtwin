@@ -1,18 +1,24 @@
-import logging
-from pathlib import Path
+from typing import TYPE_CHECKING
 
-version_path = Path(__file__).parent / "version.txt"
+if TYPE_CHECKING:
+    import logging
 
-if version_path.is_file():
-    with open(version_path) as version_file:
-        __version__ = version_file.read().strip()
+__version__: str
+logger: 'logging.Logger'
 
-del Path, version_path
 
-logger = logging.getLogger("celebtwin")
-logger.setLevel(logging.INFO)
-logging.basicConfig(level=logging.INFO)
-del logging
+def _initialize() -> None:
+    """Initialize module-level variables."""
+    import importlib.metadata
+    import logging
+
+    global __version__, logger
+    __version__ = importlib.metadata.version(__name__)
+    logger = logging.getLogger("celebtwin")
+    logger.setLevel(logging.INFO)
+    logging.basicConfig(level=logging.INFO)
+
+_initialize()
 
 
 def preload() -> None:
