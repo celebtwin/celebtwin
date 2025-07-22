@@ -48,17 +48,18 @@ _embedding_size_of = {
     "GhostFaceNet": 512,
 }
 
+_normalize = "Facenet2018"  # simply / 127.5 - 1
 _normalization_of = {
-    'Facenet': 'Facenet2018',
-    'Facenet512': 'Facenet2018',
+    'Facenet': _normalize,
+    'Facenet512': _normalize,
     'VGG-Face': 'VGGFace2',
-    "OpenFace": 'Facenet2018',
-    "DeepFace": 'Facenet2018',
-    "DeepID": 'Facenet2018',
-    "Dlib": 'Facenet2018',
+    "OpenFace": _normalize,
+    "DeepFace": _normalize,
+    "DeepID": _normalize,
+    "Dlib": _normalize,
     "ArcFace": "ArcFace",
-    "SFace": "Facenet2018",
-    "GhostFaceNet": "Facenet2018",
+    "SFace": _normalize,
+    "GhostFaceNet": _normalize,
 }
 
 
