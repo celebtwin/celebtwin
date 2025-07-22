@@ -14,6 +14,7 @@ help:
 	@echo "make train          - train a model"
 	@echo "make run_api        - start web services"
 	@echo "make lint           - run code analysis and style checks"
+	@echo "make format         - automatically format code"
 	@echo "make requirements   - install requirements"
 	@echo "make pip-compile    - compile requirements files"
 	@echo "make image          - build the Docker image"
@@ -58,8 +59,13 @@ train:
 
 .PHONY: lint
 lint:
-	-ruff check celebtwin
-	-mypy celebtwin
+	-uv run ruff check celebtwin
+	-uv run mypy celebtwin
+	-uv run isort --check celebtwin
+
+.PHONY: format
+format:
+	-uv run isort celebtwin
 
 .PHONY: requirements
 requirements: pip-compile
