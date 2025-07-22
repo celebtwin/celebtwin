@@ -119,6 +119,7 @@ def preload_ann():
         logger.info("Preloading model: %s", model.deepface_model.value)
         build_model(
             task="facial_recognition", model_name=model.deepface_model)
+    for model in [FaceModel.facenet, FaceModel.vggface]:
         load_ann(model)
 
 
