@@ -59,9 +59,10 @@ train:
 
 .PHONY: lint
 lint:
-	-uv run ruff check celebtwin
+	-uv run ruff check
 	-uv run mypy celebtwin
 	-uv run isort --check celebtwin
+	-uv run pycodestyle celebtwin
 
 .PHONY: format
 format:
