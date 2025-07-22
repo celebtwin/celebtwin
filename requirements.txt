@@ -1066,7 +1066,6 @@ six==1.17.0 \
     #   python-dateutil
     #   tensorboard
     #   tensorflow
-    #   tensorflow-metal
 sniffio==1.3.1 \
     --hash=sha256:2f6da418d1f1e0fddd844478f41680e794e6051915791a034ff65e5f100525a2 \
     --hash=sha256:f4324edc670a0f49750a81b895f35c3adb843cca46f0530f79fc1babb23789dc
@@ -1109,12 +1108,6 @@ tensorflow==2.19.0 \
     #   deepface
     #   retina-face
     #   tf-keras
-tensorflow-metal==1.2.0 \
-    --hash=sha256:4bece0ecb154b713b9f5ad4aec676a366d312822161e3cf0e1dea737c64cec04 \
-    --hash=sha256:4c52a9f7768b10ac226be758e953973734707161caaee328bd2da0cdf93c4643 \
-    --hash=sha256:5fa7cee627031c14f45bd97ff0ef422cd6c3866199ff99cf29b94db6674ceb42 \
-    --hash=sha256:bc735e36c97874e41f77ec2e7421ff745d2ec36ee641141c8091e4cc2dbcc819
-    # via celebtwin (pyproject.toml)
 termcolor==3.1.0 \
     --hash=sha256:591dd26b5c2ce03b9e43f391264626557873ce1d379019786f99b0c2bee140aa \
     --hash=sha256:6a6dd7fbee581909eeec6a756cff1d7f7c376063b14e4a298dc4980309e55970
@@ -1171,9 +1164,7 @@ werkzeug==3.1.3 \
 wheel==0.45.1 \
     --hash=sha256:661e1abd9198507b1409a20c02106d9670b2576e916d58f520316666abca6729 \
     --hash=sha256:708e7481cc80179af0e556bbf0cc00b8444c7321e2700b8d8580231d13017248
-    # via
-    #   astunparse
-    #   tensorflow-metal
+    # via astunparse
 wrapt==1.17.2 \
     --hash=sha256:08e7ce672e35efa54c5024936e559469436f8b8096253404faeb54d2a878416f \
     --hash=sha256:0a6e821770cf99cc586d33833b2ff32faebdbe886bd6322395606cf55153246c \
