@@ -1,5 +1,5 @@
 # Error on undefined variables, or if any command in a pipe fails.
-SHELL := /bin/bash -c
+SHELL := bash -c
 .SHELLFLAGS := -u -o pipefail
 
 .DELETE_ON_ERROR:  # Delete target if its recipe errors out
@@ -45,7 +45,7 @@ dataset:
 
 .PHONY: clean
 clean:
-	rm -fr **/__pycache__ **/*.pyc dockerbuild *.egg-info
+	shopt -s globstar && rm -fr .venv dockerbuild **/__pycache__ **/*.pyc *.egg-info
 
 .PHONY: run_api
 run_api:
