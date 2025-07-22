@@ -33,7 +33,7 @@ def predict(file: UploadFile, model: str | None = None):
     from .logic.preproc_face import NoFaceDetectedError
     from .logic.registry import load_latest_experiment
     assert file.filename is not None
-    with NamedTemporaryFile(delete=False) as temp_file:
+    with NamedTemporaryFile() as temp_file:
         temp_file.write(file.file.read())
         experiment = load_latest_experiment()
         try:
@@ -85,7 +85,7 @@ ClassNameResponse = TypedDict(
 def predict_ann(file: UploadFile, model: FaceModel = FaceModel.facenet) \
         -> ClassNameResponse | ErrorResponse:
     from .logic.preproc_face import NoFaceDetectedError
-    with NamedTemporaryFile(delete=False) as temp_file:
+    with NamedTemporaryFile() as temp_file:
         temp_file.write(file.file.read())
         reader = load_ann(model)
         try:
