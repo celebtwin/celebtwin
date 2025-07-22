@@ -68,6 +68,10 @@ lint:
 format:
 	-uv run isort celebtwin
 
+.PHONY: tests
+tests:
+	@echo "No tests yet"
+
 .PHONY: requirements
 requirements: pip-compile
 	pip install --quiet --upgrade pip
