@@ -1,4 +1,4 @@
-# from tempfile import SpooledTemporaryFile
+import logging
 from enum import Enum
 from functools import cache
 from pathlib import Path
@@ -9,6 +9,7 @@ from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from typing_extensions import TypedDict
 
+from . import logger
 from celebtwin.logic.ann import ANNReader
 from celebtwin.logic.annenums import ANNBackend, Detector, Model
 from celebtwin.logic.preproc_face import NoFaceDetectedError
@@ -105,12 +106,46 @@ def load_ann(model: FaceModel) -> ANNReader:
 
 @app.on_event("startup")
 def preload_ann():
-    print("Preloading models...")
+    _configure_logging()
+    from . import preload
+    logger.info("Preloading package")
+    preload()
     from deepface.modules.modeling import build_model  # type: ignore
     for model in FaceModel:
+        logger.info("Preloading model: %s", model.deepface_model.value)
         build_model(
             task="facial_recognition", model_name=model.deepface_model)
         load_ann(model)
+
+
+def _configure_logging():
+    """Call after uvicorn app is started, to reuse their color logging."""
+    logging.config.dictConfig({
+        "version": 1,
+        "disable_existing_loggers": False,
+
+        "formatters": {
+            "default": {
+                "()": "uvicorn.logging.DefaultFormatter",
+                "fmt": "%(levelprefix)s %(message)s",
+                "use_colors": None,
+            },
+        },
+        "handlers": {
+            "default": {
+                "formatter": "default",
+                "class": "logging.StreamHandler",
+                "stream": "ext://sys.stderr",
+            },
+        },
+        "loggers": {
+            "celebtwin": {
+                "handlers": ["default"],
+                "level": "INFO",
+                "propagate": False
+            },
+        },
+    })
 
 
 @app.get("/")

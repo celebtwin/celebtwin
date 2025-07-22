@@ -1,6 +1,7 @@
 """Find faces with Approximate Nearest Neighbor (ANN) search."""
 
 import csv
+import logging
 import pickle
 import random
 from itertools import groupby
@@ -19,6 +20,8 @@ from celebtwin.logic.preproc_face import (
     NoFaceDetectedError, preprocess_face_aligned)
 from celebtwin.params import LOCAL_REGISTRY_PATH
 
+logger = logging.getLogger(__name__)
+
 ann_dir = Path(LOCAL_REGISTRY_PATH) / "ann"
 deepface_dir = Path(LOCAL_REGISTRY_PATH) / "deepface"
 
@@ -30,7 +33,7 @@ class ANNReader:
         self.strategy = strategy
         self.csv_path: Path = self.strategy.metadata_path()
         self.index = self.strategy.reader()
-        print(f"Loading metadata from {self.csv_path}")
+        logger.info("Loading metadata from %s", self.csv_path)
         self.metadata: dict[int, tuple[str, str]] = {}
         with open(self.csv_path, 'rt', encoding='utf-8') as csv_file:
             for item, class_, name in csv.reader(csv_file):
@@ -504,7 +507,7 @@ class BruteForceReaderBackend(ANNReaderBackend):
     def __init__(self, strategy: ANNStrategy):
         super().__init__(strategy)
         index_path = self.strategy.index_path()
-        print(f"Loading BruteForce index from {index_path}")
+        logger.info("Loading BruteForce index from %s", index_path)
         assert isinstance(strategy, BruteForceStrategy)
         space = strategy.bf_space
         self._index = hnswlib.BFIndex(space=space, dim=strategy.dimension)
