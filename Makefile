@@ -75,7 +75,9 @@ requirements: pip-compile
 .PHONY: pip-compile
 pip-compile: requirements.txt requirements-dev.txt
 
-PIP_COMPILE_FLAGS = --strip-extras --generate-hashes
+# Set UPGRADE to --upgrade to upgrade dependencies.
+UPGRADE =
+PIP_COMPILE_FLAGS = $(UPGRADE) --strip-extras --generate-hashes
 requirements.txt: pyproject.toml
 	uv pip compile $(PIP_COMPILE_FLAGS) $< > $@
 
