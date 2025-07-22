@@ -35,7 +35,7 @@ class Dataset(ABC):
         """Load the dataset.
 
         Returns:
-            tuple: A tuple containing the training dataset and validation dataset.
+            tuple: The training dataset and validation dataset.
         """
         ...
 
@@ -371,7 +371,7 @@ class SimpleDataset(Dataset):
         """Load the dataset.
 
         Returns:
-            tuple: A tuple containing the training dataset and validation dataset.
+            tuple: The training dataset and validation dataset.
         """
         if not self._dataset_dir.exists():
             self._build_dataset()

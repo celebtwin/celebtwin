@@ -17,11 +17,11 @@ def cli() -> None:
 
 @cli.command()
 @click.option(
-    '-d', '--dataset', type=click.Choice(['aligned', 'simple']), default='simple',
-    help='Dataset preprocessing, defaults to simple.')
+    '-d', '--dataset', type=click.Choice(['aligned', 'simple']),
+    default='simple', help='Dataset preprocessing, defaults to simple.')
 @click.option(
-    '-m', '--model', type=click.Choice(['simple', 'weekend']), default='simple',
-    help='Model to train, defaults to simple.')
+    '-m', '--model', type=click.Choice(['simple', 'weekend']),
+    default='simple', help='Model to train, defaults to simple.')
 @click.option(
     '-c', '--classes', type=int,
     help='Number of classes in the model, or "all", default to 2.')

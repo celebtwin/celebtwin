@@ -76,9 +76,11 @@ class NoGCSModelFoundError(NoModelFoundError):
 def load_latest_experiment() -> 'experiment.Experiment':
     """Return the latest experiment from disk or the production from GCS.
 
-    If MODEL_TARGET is 'gcs', find the latest experiment in production, download it if needed, and return it. The experiment is cached locally.
+    If MODEL_TARGET is 'gcs', find the latest experiment in production,
+    download it if needed, and return it. The experiment is cached locally.
 
-    If MODEL_TARGET is 'local', find the latest experiment on disk and return it.
+    If MODEL_TARGET is 'local', find the latest experiment on disk and return
+    it.
     """
     from celebtwin.logic.experiment import load_experiment
 
@@ -123,10 +125,11 @@ def try_download_dataset(path: Path) -> bool:
     """Try to download and unzip a dataset from GCS.
 
     Args:
-        path: Path where the dataset should be extracted
+        path: Path where the dataset should be extracted.
 
     Returns:
-        True if the dataset was downloaded and extracted, False if it doesn't exist
+        True if the dataset was downloaded and extracted, False if it doesn't
+        exist.
     """
     client = storage.Client()
     bucket = client.bucket(BUCKET_NAME)

@@ -14,6 +14,7 @@ from .annenums import Detector
 
 Image = str | Path | np.ndarray | tf.Tensor
 
+
 @dataclass(frozen=True)
 class Point:
     x: int

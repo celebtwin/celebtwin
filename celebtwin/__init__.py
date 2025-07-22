@@ -18,6 +18,7 @@ def _initialize() -> None:
     logger.setLevel(logging.INFO)
     logging.basicConfig(level=logging.INFO)
 
+
 _initialize()
 
 

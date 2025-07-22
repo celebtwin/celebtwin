@@ -43,7 +43,8 @@ class NoFaceDetectedError(Exception):
 def preprocess_face_aligned(path: Path) -> np.ndarray:
     """Load an image, detect a face, crop and align the image.
 
-    The image is cropped to include only the face. Resizing should be done by the caller.
+    The image is cropped to include only the face. Resizing should be done by
+    the caller.
     """
     image = tf.image.decode_image(
         tf.io.read_file(str(path)),

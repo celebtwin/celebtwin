@@ -111,7 +111,8 @@ def detect(file: UploadFile, model: SupportedDetector):
     with NamedTemporaryFile() as temp_file:
         temp_file.write(file.file.read())
         faces = detection.detect_faces(Detector(model), Path(temp_file.name))
-    return {"status": "ok", "faces": [dataclasses.asdict(face) for face in faces]}
+    return {
+        "status": "ok", "faces": [dataclasses.asdict(face) for face in faces]}
 
 
 @cache

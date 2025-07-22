@@ -52,7 +52,8 @@ class Model:
     def train(
             self, train_dataset: tf.data.Dataset,
             validation_dataset: tf.data.Dataset, patience: int) -> dict:
-        """Train the model on the provided datasets, return training history."""
+        """Train the model on the provided datasets, return training history.
+        """
         if self._model is None:
             raise ValueError("Model has not been built or loaded yet.")
         print(Fore.BLUE + "👟 Training model..." + Style.RESET_ALL)
