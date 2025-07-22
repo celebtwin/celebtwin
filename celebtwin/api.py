@@ -3,17 +3,17 @@ from enum import Enum
 from functools import cache
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Literal
+from typing import TYPE_CHECKING, Literal, TypedDict
 
 from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from typing_extensions import TypedDict
 
 from . import logger
-from celebtwin.logic.ann import ANNReader
-from celebtwin.logic.annenums import ANNBackend, Detector, Model
-from celebtwin.logic.preproc_face import NoFaceDetectedError
-from celebtwin.logic.registry import load_latest_experiment
+from .logic.annenums import ANNBackend, Detector, Model
+
+if TYPE_CHECKING:
+    from .logic.ann import ANNReader
+
 
 app = FastAPI()
 # app.state.model = load_model()
@@ -30,6 +30,8 @@ app.add_middleware(
 
 @app.post("/predict/")
 def predict(file: UploadFile, model: str | None = None):
+    from .logic.preproc_face import NoFaceDetectedError
+    from .logic.registry import load_latest_experiment
     assert file.filename is not None
     with NamedTemporaryFile(delete=False) as temp_file:
         temp_file.write(file.file.read())
@@ -77,11 +79,12 @@ ClassNameResponse = TypedDict(
 
 @app.post("/predict-nn/{model}")
 @app.post("/predict-nn/")
-# /predict-annory is deprecated.
+# /predict-annoy is deprecated.
 @app.post("/predict-annoy/{model}")
 @app.post("/predict-annoy/")
 def predict_ann(file: UploadFile, model: FaceModel = FaceModel.facenet) \
         -> ClassNameResponse | ErrorResponse:
+    from .logic.preproc_face import NoFaceDetectedError
     with NamedTemporaryFile(delete=False) as temp_file:
         temp_file.write(file.file.read())
         reader = load_ann(model)
@@ -96,9 +99,10 @@ def predict_ann(file: UploadFile, model: FaceModel = FaceModel.facenet) \
 
 
 @cache
-def load_ann(model: FaceModel) -> ANNReader:
+def load_ann(model: FaceModel) -> 'ANNReader':
     # Load the production index. We do not support unloading. Resources are
     # released when the process exits.
+    from .logic.ann import ANNReader
     strategy = ANNBackend.BRUTE_FORCE.strategy_class(
         Detector.BUILTIN, model.deepface_model)
     return ANNReader(strategy)

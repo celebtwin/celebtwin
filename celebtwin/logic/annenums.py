@@ -2,12 +2,16 @@
 
 Provide only the enums that are used in the ANN strategies, for the benefit of
 type checking.
+
+This module should only import standard library to support lazy loading.
 """
 
 import functools
 from enum import Enum
+from typing import TYPE_CHECKING
 
-from .. import logic
+if TYPE_CHECKING:
+    from .. import logic
 
 
 class Model(str, Enum):
