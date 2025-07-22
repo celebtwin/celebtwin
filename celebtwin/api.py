@@ -99,8 +99,8 @@ def predict_ann(file: UploadFile, model: FaceModel = FaceModel.facenet) \
 
 
 class SupportedDetector(str, Enum):
-    builtin = "builtin"
-    skip = "skip"
+    builtin = Detector.BUILTIN.value
+    skip = Detector.SKIP.value
 
 
 @app.post("/detect/{model}")
@@ -110,7 +110,7 @@ def detect(file: UploadFile, model: SupportedDetector):
     from .logic import detection
     with NamedTemporaryFile() as temp_file:
         temp_file.write(file.file.read())
-        faces = detection.detect_faces(model, Path(temp_file.name))
+        faces = detection.detect_faces(Detector(model), Path(temp_file.name))
     return {"status": "ok", "faces": [dataclasses.asdict(face) for face in faces]}
 
 
