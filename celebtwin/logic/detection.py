@@ -40,6 +40,8 @@ def detect_faces(detector: Detector, image: Image) -> list[Face]:
     if detector == Detector.BUILTIN:
         from ..logic import preproc_face
         faces = preproc_face.detect_faces(image)
+    elif detector == Detector.SKIP:
+        faces = []
     else:
         face_detector: deepface.models.detector.DeepFaceDetector = \
             deepface.modules.modeling.build_model(

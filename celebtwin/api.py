@@ -98,6 +98,22 @@ def predict_ann(file: UploadFile, model: FaceModel = FaceModel.facenet) \
         return {"status": "ok", "class": class_, "name": name}
 
 
+class SupportedDetector(str, Enum):
+    builtin = "builtin"
+    skip = "skip"
+
+
+@app.post("/detect/{model}")
+def detect(file: UploadFile, model: SupportedDetector):
+    import dataclasses
+
+    from .logic import detection
+    with NamedTemporaryFile() as temp_file:
+        temp_file.write(file.file.read())
+        faces = detection.detect_faces(model, Path(temp_file.name))
+    return {"status": "ok", "faces": [dataclasses.asdict(face) for face in faces]}
+
+
 @cache
 def load_ann(model: FaceModel) -> 'ANNReader':
     # Load the production index. We do not support unloading. Resources are
